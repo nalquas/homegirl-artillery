@@ -20,6 +20,8 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
 
+DEBUG = true
+
 font = text.loadfont("Victoria.8b.gif")
 Screen = require("screen")
 
@@ -27,13 +29,19 @@ Screen = require("screen")
 	function _init(args)
 		sys.stepinterval(1000/60.0)
 		scrn = Screen:new("Artillery for Homegirl 1.5.5", 31, 8) --Mode31=640x480; 8 color bits
-		scrn:colors(1, 0)
+		scrn:colors(33, 32)
 		
-		scrn:palette(0,0,0,0) -- black
-		scrn:palette(1,15,15,15) -- white
-		scrn:palette(2,15,0,0) -- red
-		scrn:palette(3,0,15,0) -- green
-		scrn:palette(4,0,0,15) -- blue
+		-- Load assets
+		spritesheet = image.load("spritesheet.gif")[1]
+		image.usepalette(spritesheet)
+		
+		-- Set palette
+		-- Indexes 0 to 31 are reserved for the spritesheet (which uses 32 colors)
+		scrn:palette(32,0,0,0) -- black
+		scrn:palette(33,15,15,15) -- white
+		scrn:palette(34,15,0,0) -- red
+		scrn:palette(35,0,15,0) -- green
+		scrn:palette(36,0,0,15) -- blue
 		
 		-- Setup game
 		TERRAIN_SIZE_X, TERRAIN_SIZE_Y = scrn:size()
@@ -117,25 +125,32 @@ Screen = require("screen")
 		-- END LOGIC SECTION
 		
 		-- BEGIN RENDER SECTION
-			gfx.bgcolor(0)
+			gfx.bgcolor(32)
 			gfx.cls()
 			
 			-- Render terrain
-			gfx.fgcolor(3)
+			gfx.fgcolor(35)
 			for x=1,TERRAIN_SIZE_X-1 do
 				gfx.line(x-1, terrain[x-1], x, terrain[x])
 			end
 			
 			-- Render players
-			gfx.fgcolor(1)
+			gfx.fgcolor(33)
 			for i=1,PLAYER_COUNT do
 				circb(players[i].x, terrain[round(players[i].x)], 4)
 			end
 			
 			-- Render overlay
-			gfx.fgcolor(1)
+			gfx.fgcolor(33)
 			circb(players[1].x, terrain[round(players[1].x)], AIM_MAX_LENGTH) -- Aiming circle
 			gfx.line(players[1].x, terrain[round(players[1].x)], players[1].x+players[1].target_x, terrain[round(players[1].x)]+players[1].target_y) -- Aiming line
+			
+			-- Debug renders
+			if DEBUG then
+				-- Palette
+				text.draw("Current palette", font, 0, 2)
+				show_palette()
+			end
 			
 			scrn:step()
 		-- END RENDER SECTION
@@ -223,6 +238,13 @@ Screen = require("screen")
 -- END HELPER FUNCTIONS
 
 -- BEGIN GRAPHICS FUNCTIONS
+	function show_palette()
+		for i=0,255 do
+			local r, g, b = gfx.palette(i)
+			gfx.pixel(i,0,i)
+		end
+	end
+	
 	function circ(x, y, radius)
 		-- Use triangles to approximate a circle
 		local x_now = x+radius*math.cos(math.rad(350))
