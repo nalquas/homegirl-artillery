@@ -41,6 +41,7 @@ Screen = require("screen")
 		TERRAIN_HEIGHT_DEVIATION_MAX = round(TERRAIN_SIZE_Y / 5)
 		
 		PLAYER_COUNT = 2
+		AIM_MAX_LENGTH = 96
 		
 		-- Init game
 		init_game()
@@ -58,31 +59,54 @@ Screen = require("screen")
 	end
 
 	function _step(t)
+		-- Needed for btn
 		homegirl_buttonmap = input.gamepad(0)
 		
 		-- BEGIN INPUT SECTION
 			for i=1,PLAYER_COUNT do
-				local direction = 0
-				local speed = 1.0
-				if i==1 then
-					-- Player
-					if btn(2) then
-						direction = direction - 1
+				-- BEGIN MOVEMENT
+					local direction = 0
+					local speed = 1.0
+					if i==1 then
+						-- Player
+						if btn(2) then
+							direction = direction - 1
+						end
+						if btn(3) then
+							direction = direction + 1
+						end
+						
+					else
+						-- AI
+						-- TODO Implement AI
 					end
-					if btn(3) then
-						direction = direction + 1
+					-- Calculate speed based on height difference
+					local height_diff = math.abs((terrain[round(players[i].x)] or 0) - (terrain[round(players[i].x + direction)] or 0))
+					if not (height_diff == 0) then
+						speed = speed - clip(height_diff/2.5, 0.0, speed)
 					end
-				else
-					-- AI
-					-- TODO Implement AI
-				end
-				-- Calculate speed based on height difference
-				local height_diff = math.abs((terrain[round(players[i].x)] or 0) - (terrain[round(players[i].x + direction)] or 0))
-				if not (height_diff == 0) then
-					speed = speed - clip(height_diff/2.5, 0.0, speed)
-				end
-				-- Commit movement
-				players[i].x = clip(players[i].x + (direction * speed), 0, TERRAIN_SIZE_X-1)
+					-- Commit movement
+					players[i].x = clip(players[i].x + (direction * speed), 0, TERRAIN_SIZE_X-1)
+				-- END MOVEMENT
+				-- BEGIN AIMING
+					if i==1 then
+						-- Player
+						-- Get relative position of mouse
+						local mx, my, mbtn = input.mouse()
+						players[1].target_x = mx - players[1].x
+						players[1].target_y = my - terrain[round(players[1].x)]
+					else
+						-- AI
+						-- TODO Implement AI
+					end
+					-- Restrict aiming to allowed vector length
+					-- If the vector is longer than AIM_MAX_LENGTH, normalize the vector (length 1), then scale to AIM_MAX_LENGTH
+					local length = math.sqrt(players[i].target_x^2 + players[i].target_y^2)
+					if length > AIM_MAX_LENGTH then
+						players[i].target_x = (players[i].target_x / length) * AIM_MAX_LENGTH
+						players[i].target_y = (players[i].target_y / length) * AIM_MAX_LENGTH
+					end
+				-- END AIMING
 			end
 		-- END INPUT SECTION
 		
@@ -106,17 +130,21 @@ Screen = require("screen")
 			-- Render players
 			gfx.fgcolor(1)
 			for i=1,PLAYER_COUNT do
-				local player = players[i]
-				circb(player.x, terrain[round(player.x)], 4)
+				circb(players[i].x, terrain[round(players[i].x)], 4)
 			end
+			
+			-- Render overlay
+			gfx.fgcolor(1)
+			circb(players[1].x, terrain[round(players[1].x)], AIM_MAX_LENGTH) -- Aiming circle
+			gfx.line(players[1].x, terrain[round(players[1].x)], players[1].x+players[1].target_x, terrain[round(players[1].x)]+players[1].target_y) -- Aiming line
 			
 			scrn:step()
 		-- END RENDER SECTION
 		
 		-- BEGIN HOTKEY SECTION
 			-- Check if we have to exit
-			if input.hotkey() == "\x1b" then
-				--print("Thank you for playing Artillery by Nalquas.")
+			if input.hotkey() == "\x1b" or input.hotkey() == "q" then
+				print("Thank you for playing Artillery by Nalquas.")
 				sys.exit(0)
 			end
 		-- END HOTKEY SECTION
