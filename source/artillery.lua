@@ -27,9 +27,15 @@ Screen = require("screen")
 
 -- BEGIN MAIN FUNCTIONS
 	function _init(args)
-		sys.stepinterval(1000/60.0)
-		scrn = Screen:new("Artillery for Homegirl 1.5.5", 31, 8) --Mode31=640x480; 8 color bits
+		sys.stepinterval(1000/30.0)
+		scrn = Screen:new("Artillery for Homegirl 1.5.5", 15, 8) --Mode15=640x360; 8 color bits
 		scrn:colors(33, 32)
+		
+		if DEBUG then
+			homegirl_lastFPSflush = 0
+			homegirlfps_accum = 0
+			homegirlfps = 0
+		end
 		
 		-- Load assets
 		spritesheet = image.load("spritesheet.gif")[1]
@@ -71,7 +77,7 @@ Screen = require("screen")
 			for i=1,PLAYER_COUNT do
 				-- BEGIN MOVEMENT
 					local direction = 0
-					local speed = 1.0
+					local speed = 1.5
 					if i==1 then
 						local btn = input.gamepad(0)
 						-- Player
@@ -125,13 +131,17 @@ Screen = require("screen")
 		-- END LOGIC SECTION
 		
 		-- BEGIN RENDER SECTION
+			-- Clear screen
 			gfx.bgcolor(32)
 			gfx.cls()
 			
 			-- Render terrain
-			gfx.fgcolor(35)
-			for x=1,TERRAIN_SIZE_X-1 do
-				gfx.line(x-1, terrain[x-1], x, terrain[x])
+			--gfx.fgcolor(35)
+			--for x=1,TERRAIN_SIZE_X-1 do
+			--	gfx.line(x-1, terrain[x-1], x, terrain[x])
+			--end
+			for x=0,TERRAIN_SIZE_X-1 do
+				image.tri(spritesheet, x,terrain[x], x,terrain[x], x,TERRAIN_SIZE_Y-1, 32+(x%32),terrain[x], 32+(x%32),terrain[x], 32+(x%32),TERRAIN_SIZE_Y)
 			end
 			
 			-- Render players
@@ -144,12 +154,24 @@ Screen = require("screen")
 			gfx.fgcolor(33)
 			circb(players[1].x, terrain[round(players[1].x)], AIM_MAX_LENGTH) -- Aiming circle
 			gfx.line(players[1].x, terrain[round(players[1].x)], players[1].x+players[1].target_x, terrain[round(players[1].x)]+players[1].target_y) -- Aiming line
+			if DEBUG then
+				text.draw(round(players[1].target_x) .. ", " .. round(players[1].target_y), font, players[1].x-32, terrain[round(players[1].x)]+64) -- Aiming vector text
+			end
 			
 			-- Debug renders
 			if DEBUG then
 				-- Palette
 				text.draw("Current palette", font, 0, 2)
 				show_palette()
+				
+				-- Performance
+				homegirlfps_accum = homegirlfps_accum + 1
+				if t-homegirl_lastFPSflush>=1000 then
+					homegirlfps = homegirlfps_accum
+					homegirlfps_accum = 0
+					homegirl_lastFPSflush = t
+				end
+				text.draw("t = " .. t .. "\nFPS: " .. homegirlfps, font, 540, 2)
 			end
 			
 			scrn:step()
