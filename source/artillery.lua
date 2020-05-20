@@ -59,23 +59,22 @@ Screen = require("screen")
 	end
 
 	function _step(t)
-		-- Needed for btn
-		homegirl_buttonmap = input.gamepad(0)
-		
 		-- BEGIN INPUT SECTION
 			for i=1,PLAYER_COUNT do
 				-- BEGIN MOVEMENT
 					local direction = 0
 					local speed = 1.0
 					if i==1 then
+						local btn = input.gamepad(0)
 						-- Player
-						if btn(2) then
+						if (btn & 2) > 0 then
+							-- Left
 							direction = direction - 1
 						end
-						if btn(3) then
+						if (btn & 1) > 0 then
+							-- Right
 							direction = direction + 1
 						end
-						
 					else
 						-- AI
 						-- TODO Implement AI
@@ -220,28 +219,6 @@ Screen = require("screen")
 	function round(x)
 		if x<0 then return math.ceil(x-0.5) end
 		return math.floor(x+0.5)
-	end
-	
-	-- Taken from my own tic.lua
-	function btn(id)
-		if id == 3 then
-			return (homegirl_buttonmap & 1) > 0
-		elseif id == 2 then
-			return (homegirl_buttonmap & 2) > 0
-		elseif id == 0 then
-			return (homegirl_buttonmap & 4) > 0
-		elseif id == 1 then
-			return (homegirl_buttonmap & 8) > 0
-		elseif id == 6 then
-			return (homegirl_buttonmap & 16) > 0
-		elseif id == 7 then
-			return (homegirl_buttonmap & 32) > 0
-		elseif id == 5 then
-			return (homegirl_buttonmap & 64) > 0
-		elseif id == 4 then
-			return (homegirl_buttonmap & 128) > 0
-		end
-		return (homegirl_buttonmap & (2^id)) > 0
 	end
 -- END HELPER FUNCTIONS
 
