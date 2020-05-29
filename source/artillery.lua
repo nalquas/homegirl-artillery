@@ -21,15 +21,18 @@
 -- SOFTWARE.
 
 DEBUG = true
+TARGET_FPS = 60.0
 
 font = text.loadfont("Victoria.8b.gif")
 Screen = require("screen")
 
 -- BEGIN MAIN FUNCTIONS
 	function _init(args)
-		sys.stepinterval(1000/30.0)
-		scrn = Screen:new("Artillery for Homegirl 1.5.5", 15, 8) --Mode15=640x360; 8 color bits
+		sys.stepinterval(1000/TARGET_FPS)
+		scrn = Screen:new("Artillery for Homegirl 1.5.5", 15, 8) --Mode15=640x360 or 640x480; 8 color bits
 		scrn:colors(33, 32)
+		
+		t_last = 0
 		
 		if DEBUG then
 			homegirl_lastFPSflush = 0
@@ -73,6 +76,12 @@ Screen = require("screen")
 	end
 
 	function _step(t)
+		-- Calculate delta time
+		if t_last == 0 then t_last = t-1 end
+		dt_millis = t - t_last
+		dt_seconds = dt_millis * 0.001
+		t_last = t
+		
 		-- BEGIN INPUT SECTION
 			for i=1,PLAYER_COUNT do
 				-- BEGIN MOVEMENT
@@ -99,7 +108,7 @@ Screen = require("screen")
 						speed = speed - clip(height_diff/2.5, 0.0, speed)
 					end
 					-- Commit movement
-					players[i].x = clip(players[i].x + (direction * speed), 0, TERRAIN_SIZE_X-1)
+					players[i].x = clip(players[i].x + (direction * speed * (30 * dt_seconds)), 0, TERRAIN_SIZE_X-1)
 				-- END MOVEMENT
 				-- BEGIN AIMING
 					if i==1 then
