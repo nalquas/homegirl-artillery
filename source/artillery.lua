@@ -80,6 +80,11 @@ Screen = require("screen")
 		-- Remove all projectiles
 		projectiles = {}
 		projectiles[1] = projectile_new(players[1].x, terrain[round(players[1].x)], 0, 0)
+		
+		-- Game phases:
+		-- setup - Players move their tanks and aim
+		-- action - Shots are fired, projectiles move, players wait
+		phase = "setup"
 	end
 
 	function _step(t)
@@ -89,109 +94,124 @@ Screen = require("screen")
 		dt_seconds = dt_millis * 0.001
 		t_last = t
 		
-		-- BEGIN INPUT SECTION
-			for i=1,PLAYER_COUNT do
-				-- BEGIN MOVEMENT
-					local direction = 0
-					local speed = 1.5
-					if i==1 then
-						local btn = input.gamepad(0)
-						-- Player
-						if (btn & 2) > 0 then
-							-- Left
-							direction = direction - 1
+		-- BEGIN GAMEPLAY SECTION
+		if phase == "setup" then
+			-- BEGIN INPUT SECTION
+				for i=1,PLAYER_COUNT do
+					-- BEGIN MOVEMENT
+						local direction = 0
+						local speed = 1.5
+						if i==1 then
+							local btn = input.gamepad(0)
+							-- Player
+							if (btn & 2) > 0 then
+								-- Left
+								direction = direction - 1
+							end
+							if (btn & 1) > 0 then
+								-- Right
+								direction = direction + 1
+							end
+						else
+							-- AI
+							-- TODO Implement AI
 						end
-						if (btn & 1) > 0 then
-							-- Right
-							direction = direction + 1
+						-- Calculate speed based on height difference
+						local height_diff = math.abs((terrain[round(players[i].x)] or 0) - (terrain[round(players[i].x + direction)] or 0))
+						if not (height_diff == 0) then
+							speed = speed - clip(height_diff/2.5, 0.0, speed)
 						end
-					else
-						-- AI
-						-- TODO Implement AI
-					end
-					-- Calculate speed based on height difference
-					local height_diff = math.abs((terrain[round(players[i].x)] or 0) - (terrain[round(players[i].x + direction)] or 0))
-					if not (height_diff == 0) then
-						speed = speed - clip(height_diff/2.5, 0.0, speed)
-					end
-					-- Commit movement
-					players[i].x = clip(players[i].x + (direction * speed * (30 * dt_seconds)), 0, TERRAIN_SIZE_X-1)
-				-- END MOVEMENT
-				-- BEGIN AIMING
-					if i==1 then
-						-- Player
-						-- Get relative position of mouse
-						local mx, my, mbtn = input.mouse()
-						players[1].target_x = mx - players[1].x
-						players[1].target_y = my - terrain[round(players[1].x)]
-					else
-						-- AI
-						-- TODO Implement AI
-					end
-					-- Restrict aiming to allowed vector length
-					-- If the vector is longer than AIM_MAX_LENGTH, normalize the vector (length 1), then scale to AIM_MAX_LENGTH
-					local length = math.sqrt(players[i].target_x^2 + players[i].target_y^2)
-					if length > AIM_MAX_LENGTH then
-						players[i].target_x = (players[i].target_x / length) * AIM_MAX_LENGTH
-						players[i].target_y = (players[i].target_y / length) * AIM_MAX_LENGTH
-					end
-				-- END AIMING
-			end
-		-- END INPUT SECTION
-		
-		-- BEGIN LOGIC SECTION
-			-- Player position sanity checks
-			for i=1,PLAYER_COUNT do
-				players[i].x = clip(players[i].x, 0, TERRAIN_SIZE_X-1)
-			end
-		-- END LOGIC SECTION
+						-- Commit movement
+						players[i].x = clip(players[i].x + (direction * speed * (30 * dt_seconds)), 0, TERRAIN_SIZE_X-1)
+					-- END MOVEMENT
+					-- BEGIN AIMING
+						if i==1 then
+							-- Player
+							-- Get relative position of mouse
+							local mx, my, mbtn = input.mouse()
+							players[1].target_x = mx - players[1].x
+							players[1].target_y = my - terrain[round(players[1].x)]
+						else
+							-- AI
+							-- TODO Implement AI
+						end
+						-- Restrict aiming to allowed vector length
+						-- If the vector is longer than AIM_MAX_LENGTH, normalize the vector (length 1), then scale to AIM_MAX_LENGTH
+						local length = math.sqrt(players[i].target_x^2 + players[i].target_y^2)
+						if length > AIM_MAX_LENGTH then
+							players[i].target_x = (players[i].target_x / length) * AIM_MAX_LENGTH
+							players[i].target_y = (players[i].target_y / length) * AIM_MAX_LENGTH
+						end
+					-- END AIMING
+				end
+			-- END INPUT SECTION
+			
+			-- BEGIN LOGIC SECTION
+				-- Player position sanity checks
+				for i=1,PLAYER_COUNT do
+					players[i].x = clip(players[i].x, 0, TERRAIN_SIZE_X-1)
+				end
+			-- END LOGIC SECTION
+		elseif phase == "action" then
+			
+		end
+		-- END GAMEPLAY SECTION
 		
 		-- BEGIN RENDER SECTION
-			-- Clear screen
-			gfx.bgcolor(37)
-			gfx.cls()
-			
-			-- Render terrain
-			--gfx.fgcolor(35)
-			--for x=1,TERRAIN_SIZE_X-1 do
-			--	gfx.line(x-1, terrain[x-1], x, terrain[x])
-			--end
-			for x=0,TERRAIN_SIZE_X-1 do
-				image.tri(spritesheet, x,terrain[x], x,terrain[x], x,TERRAIN_SIZE_Y-1, 32+(x%32),terrain[x], 32+(x%32),terrain[x], 32+(x%32),TERRAIN_SIZE_Y)
-			end
-			
-			-- Render players
-			for i=1,PLAYER_COUNT do
-				local x = players[i].x
-				local y = terrain[round(players[i].x)]
-				-- Vehicle
-				gfx.fgcolor(33)
-				circb(x, y, 4)
-				-- HP display
-				gfx.fgcolor(34)
-				gfx.bar(x-5, y-8, 11, 1)
-				gfx.fgcolor(35)
-				gfx.bar(x-5, y-8, 11*(players[i].hp/100), 1)
-			end
-			
-			-- Render projectiles
-			if #projectiles > 0 then
-				gfx.fgcolor(34)
-				for i=1,#projectiles do
-					circ(projectiles[i].x, projectiles[i].y, 1)
+			if phase == "setup" then
+				-- Clear screen
+				gfx.bgcolor(37)
+				gfx.cls()
+				
+				-- Render terrain
+				--gfx.fgcolor(35)
+				--for x=1,TERRAIN_SIZE_X-1 do
+				--	gfx.line(x-1, terrain[x-1], x, terrain[x])
+				--end
+				for x=0,TERRAIN_SIZE_X-1 do
+					image.tri(spritesheet, x,terrain[x], x,terrain[x], x,TERRAIN_SIZE_Y-1, 32+(x%32),terrain[x], 32+(x%32),terrain[x], 32+(x%32),TERRAIN_SIZE_Y)
 				end
-			end
+				
+				-- Render players
+				for i=1,PLAYER_COUNT do
+					local x = players[i].x
+					local y = terrain[round(players[i].x)]
+					-- Vehicle
+					gfx.fgcolor(33)
+					circb(x, y, 4)
+					-- HP display
+					gfx.fgcolor(34)
+					gfx.bar(x-5, y-8, 11, 1)
+					gfx.fgcolor(35)
+					gfx.bar(x-5, y-8, 11*(players[i].hp/100), 1)
+				end
 			
-			-- Render overlay
-			gfx.fgcolor(33)
-			circb(players[1].x, terrain[round(players[1].x)], AIM_MAX_LENGTH) -- Aiming circle
-			gfx.line(players[1].x, terrain[round(players[1].x)], players[1].x+players[1].target_x, terrain[round(players[1].x)]+players[1].target_y) -- Aiming line
-			if DEBUG then
-				text.draw_shadowed(round(players[1].target_x) .. ", " .. round(players[1].target_y), font, players[1].x-32, terrain[round(players[1].x)]+64) -- Aiming vector text
+				-- Render overlay
+				gfx.fgcolor(33)
+				circb(players[1].x, terrain[round(players[1].x)], AIM_MAX_LENGTH) -- Aiming circle
+				gfx.line(players[1].x, terrain[round(players[1].x)], players[1].x+players[1].target_x, terrain[round(players[1].x)]+players[1].target_y) -- Aiming line
+				if DEBUG then
+					text.draw_shadowed(round(players[1].target_x) .. ", " .. round(players[1].target_y), font, players[1].x-32, terrain[round(players[1].x)]+64) -- Aiming vector text
+				end
+				
+				-- Render phase status as it will be in the next loop
+				text.draw_shadowed("Phase: " .. phase, font, (SCREEN_SIZE_X / 2) - 64, 2)
+			elseif phase == "action" then
+				-- Render projectiles
+				if #projectiles > 0 then
+					gfx.fgcolor(34)
+					for i=1,#projectiles do
+						circ(projectiles[i].x, projectiles[i].y, 1)
+					end
+				end
+			else
+				text.draw("UNKNOWN PHASE, GAME IS STUCK", font, 2, SCREEN_SIZE_Y / 2 - 4)
 			end
 			
 			-- Debug renders
 			if DEBUG then
+				gfx.fgcolor(33)
+				
 				-- Palette
 				text.draw("Current palette", font, 0, 2)
 				show_palette()
