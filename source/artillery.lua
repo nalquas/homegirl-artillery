@@ -51,9 +51,12 @@ Screen = require("screen")
 		scrn:palette(34,15,0,0) -- red
 		scrn:palette(35,0,15,0) -- green
 		scrn:palette(36,0,0,15) -- blue
+		scrn:palette(37,0,0,2) -- blue (very dark)
 		
 		-- Setup game
-		TERRAIN_SIZE_X, TERRAIN_SIZE_Y = scrn:size()
+		SCREEN_SIZE_X, SCREEN_SIZE_Y = scrn:size()
+		TERRAIN_SIZE_X = SCREEN_SIZE_X
+		TERRAIN_SIZE_Y = SCREEN_SIZE_Y
 		TERRAIN_HEIGHT_BASE = round((TERRAIN_SIZE_Y / 3) * 2)
 		TERRAIN_HEIGHT_DEVIATION_MAX = round(TERRAIN_SIZE_Y / 5)
 		
@@ -73,8 +76,12 @@ Screen = require("screen")
 		-- Generate players
 		players = {}
 		players_generate()
+		
+		-- Remove all projectiles
+		projectiles = {}
 	end
 
+	can_do_test = true
 	function _step(t)
 		-- Calculate delta time
 		if t_last == 0 then t_last = t-1 end
@@ -141,7 +148,7 @@ Screen = require("screen")
 		
 		-- BEGIN RENDER SECTION
 			-- Clear screen
-			gfx.bgcolor(32)
+			gfx.bgcolor(37)
 			gfx.cls()
 			
 			-- Render terrain
@@ -180,7 +187,7 @@ Screen = require("screen")
 					homegirlfps_accum = 0
 					homegirl_lastFPSflush = t
 				end
-				text.draw("t = " .. t .. "\nFPS: " .. homegirlfps, font, 540, 2)
+				text.draw("t = " .. t .. "\nFPS: " .. homegirlfps, font, SCREEN_SIZE_X - 100, 2)
 			end
 			
 			scrn:step()
@@ -217,6 +224,20 @@ Screen = require("screen")
 	end
 -- END PLAYER FUNCTIONS
 
+-- BEGIN PROJECTILE FUNCTIONS
+	function projectile_new(x, y, move_x, move_y)
+		x = clip(x, 0, TERRAIN_SIZE_X-1)
+		y = clip(y, 0, TERRAIN_SIZE_Y-1)
+		local projectile = {
+			x = x,
+			y = y,
+			move_x = move_x,
+			move_y = move_y
+			}
+		return projectile
+	end
+-- END PROJECTILE FUNCTIONS
+
 -- BEGIN TERRAIN FUNCTIONS
 	-- Fill terrain with random heights
 	function terrain_generate()
@@ -247,6 +268,18 @@ Screen = require("screen")
 					end
 					prev_x = x
 				end
+			end
+		end
+	end
+	
+	-- Punch a hole into the terrain (Use negative depth to make bumps instead)
+	function terrain_hole(x_center, width, depth)
+		local width_half = round(width/2.0)
+		for x=round(x_center-width_half),round(x_center+width_half),1 do
+			if x >= 0 and x <= TERRAIN_SIZE_X-1 then
+				--local depth_factor = (width_half - math.abs(x-x_center)) / width_half
+				local depth_factor = (width_half - (((x-x_center)^2)/width_half)) / width_half
+				terrain[x] = clip(round(terrain[x] + (depth * depth_factor)), 0, TERRAIN_SIZE_Y)
 			end
 		end
 	end
