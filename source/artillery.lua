@@ -79,9 +79,9 @@ Screen = require("screen")
 		
 		-- Remove all projectiles
 		projectiles = {}
+		projectiles[1] = projectile_new(players[1].x, terrain[round(players[1].x)], 0, 0)
 	end
 
-	can_do_test = true
 	function _step(t)
 		-- Calculate delta time
 		if t_last == 0 then t_last = t-1 end
@@ -161,9 +161,25 @@ Screen = require("screen")
 			end
 			
 			-- Render players
-			gfx.fgcolor(33)
 			for i=1,PLAYER_COUNT do
-				circb(players[i].x, terrain[round(players[i].x)], 4)
+				local x = players[i].x
+				local y = terrain[round(players[i].x)]
+				-- Vehicle
+				gfx.fgcolor(33)
+				circb(x, y, 4)
+				-- HP display
+				gfx.fgcolor(34)
+				gfx.bar(x-5, y-8, 11, 1)
+				gfx.fgcolor(35)
+				gfx.bar(x-5, y-8, 11*(players[i].hp/100), 1)
+			end
+			
+			-- Render projectiles
+			if #projectiles > 0 then
+				gfx.fgcolor(34)
+				for i=1,#projectiles do
+					circ(projectiles[i].x, projectiles[i].y, 1)
+				end
 			end
 			
 			-- Render overlay
@@ -187,7 +203,7 @@ Screen = require("screen")
 					homegirlfps_accum = 0
 					homegirl_lastFPSflush = t
 				end
-				text.draw("t = " .. t .. "\nFPS: " .. homegirlfps, font, SCREEN_SIZE_X - 100, 2)
+				text.draw("t = " .. t .. "\ndt = " .. dt_millis .."\nFPS: " .. homegirlfps, font, SCREEN_SIZE_X - 100, 2)
 			end
 			
 			scrn:step()
