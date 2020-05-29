@@ -187,7 +187,7 @@ Screen = require("screen")
 			circb(players[1].x, terrain[round(players[1].x)], AIM_MAX_LENGTH) -- Aiming circle
 			gfx.line(players[1].x, terrain[round(players[1].x)], players[1].x+players[1].target_x, terrain[round(players[1].x)]+players[1].target_y) -- Aiming line
 			if DEBUG then
-				text.draw(round(players[1].target_x) .. ", " .. round(players[1].target_y), font, players[1].x-32, terrain[round(players[1].x)]+64) -- Aiming vector text
+				text.draw_shadowed(round(players[1].target_x) .. ", " .. round(players[1].target_y), font, players[1].x-32, terrain[round(players[1].x)]+64) -- Aiming vector text
 			end
 			
 			-- Debug renders
@@ -203,7 +203,7 @@ Screen = require("screen")
 					homegirlfps_accum = 0
 					homegirl_lastFPSflush = t
 				end
-				text.draw("t = " .. t .. "\ndt = " .. dt_millis .."\nFPS: " .. homegirlfps, font, SCREEN_SIZE_X - 100, 2)
+				text.draw("t = " .. t .. "\ndt = " .. dt_millis .. "\nFPS(dt): " .. round(1000.0/dt_millis) .."\nFPS: " .. homegirlfps, font, SCREEN_SIZE_X - 100, 2)
 			end
 			
 			scrn:step()
@@ -348,5 +348,12 @@ Screen = require("screen")
 			x_last = x_now
 			y_last = y_now
 		end
+	end
+	
+	function text.draw_shadowed(txt, font, x, y)
+		gfx.fgcolor(32)
+		text.draw(txt, font, x+1, y+1)
+		gfx.fgcolor(33)
+		text.draw(txt, font, x, y)
 	end
 -- END GRAPHICS FUNCTIONS
