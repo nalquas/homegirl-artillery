@@ -20,7 +20,7 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
 
-DEBUG = true
+DEBUG = false
 TARGET_FPS = 60.0
 
 font = text.loadfont("Victoria.8b.gif")
@@ -62,6 +62,7 @@ Screen = require("screen")
 		
 		PLAYER_COUNT = 2
 		AIM_MAX_LENGTH = 96
+		GRAVITY = 1.0
 		
 		-- Init game
 		init_game()
@@ -72,6 +73,7 @@ Screen = require("screen")
 		terrain = {}
 		terrain_generate()
 		terrain_smooth(64)
+		terrain_refreshed = true
 		
 		-- Generate players
 		players = {}
@@ -79,7 +81,7 @@ Screen = require("screen")
 		
 		-- Remove all projectiles
 		projectiles = {}
-		projectiles[1] = projectile_new(players[1].x, terrain[round(players[1].x)], 0, 0)
+		projectiles[1] = projectile_new(players[1].x, terrain[round(players[1].x)], 0.42, -0.42)
 		
 		-- Game phases:
 		-- setup - Players move their tanks and aim
@@ -154,15 +156,45 @@ Screen = require("screen")
 				end
 			-- END LOGIC SECTION
 		elseif phase == "action" then
-			
+			-- BEGIN LOGIC SECTION
+				-- Process projectiles
+				if #projectiles > 0 then
+					for i=1,#projectiles do
+						if projectiles[i].alive then
+							-- Projectile movement
+							projectiles[i].x = projectiles[i].x + projectiles[i].move_x
+							projectiles[i].y = projectiles[i].y + projectiles[i].move_y
+							
+							-- Change movement vector for next loop
+							projectiles[i].move_y = projectiles[i].move_y + (GRAVITY * dt_seconds)
+							
+							-- If projectile left the map, despawn
+							if projectiles[i].x < 0 or projectiles[i].x > TERRAIN_SIZE_X-1 or projectiles[i].y > TERRAIN_SIZE_Y-1 then
+								projectiles[i].alive = false
+							else
+								-- If projectile hit the terrain, make a hole
+								if projectiles[i].y > terrain[round(projectiles[i].x)] then
+									projectiles[i].alive = false
+									terrain_hole(projectiles[i].x, 32, 24, true)
+									terrain_refreshed = true
+								end
+							end
+						end
+					end
+				end
+			-- END LOGIC SECTION
 		end
 		-- END GAMEPLAY SECTION
 		
 		-- BEGIN RENDER SECTION
-			if phase == "setup" then
-				-- Clear screen
-				gfx.bgcolor(37)
-				gfx.cls()
+			if phase == "setup" or terrain_refreshed then
+				terrain_refreshed = false
+				
+				if phase == "setup" then
+					-- Clear screen (only in setup phase)
+					gfx.bgcolor(37)
+					gfx.cls()
+				end
 				
 				-- Render terrain
 				--gfx.fgcolor(35)
@@ -207,15 +239,18 @@ Screen = require("screen")
 				if t_setup > 0 then
 					text.draw_shadowed(round(t_setup / 1000), font, SCREEN_SIZE_X / 2, 12, true)
 				end
-			elseif phase == "action" then
+			end
+			if phase == "action" then
 				-- Render projectiles
 				if #projectiles > 0 then
 					gfx.fgcolor(34)
 					for i=1,#projectiles do
-						circ(projectiles[i].x, projectiles[i].y, 1)
+						--circ(projectiles[i].x, projectiles[i].y, 1)
+						gfx.pixel(projectiles[i].x, projectiles[i].y, gfx.fgcolor())
 					end
 				end
-			else
+			end
+			if not (phase == "setup" or phase == "action") then
 				text.draw_centered("UNKNOWN PHASE, GAME IS STUCK", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 4, true)
 			end
 			
@@ -281,6 +316,7 @@ Screen = require("screen")
 		x = clip(x, 0, TERRAIN_SIZE_X-1)
 		y = clip(y, 0, TERRAIN_SIZE_Y-1)
 		local projectile = {
+			alive = true,
 			x = x,
 			y = y,
 			move_x = move_x,
@@ -325,10 +361,18 @@ Screen = require("screen")
 	end
 	
 	-- Punch a hole into the terrain (Use negative depth to make bumps instead)
-	function terrain_hole(x_center, width, depth)
+	function terrain_hole(x_center, width, depth, clear_graphically)
+		clear_graphically = clear_graphically or false
 		local width_half = round(width/2.0)
 		for x=round(x_center-width_half),round(x_center+width_half),1 do
 			if x >= 0 and x <= TERRAIN_SIZE_X-1 then
+				-- Clear screen only at old terrain area
+				if clear_graphically then
+					gfx.fgcolor(gfx.bgcolor())
+					gfx.bar(x, terrain[x], 1, SCREEN_SIZE_Y - terrain[x])
+				end
+				
+				-- Punch hole
 				--local depth_factor = (width_half - math.abs(x-x_center)) / width_half
 				local depth_factor = (width_half - (((x-x_center)^2)/width_half)) / width_half
 				terrain[x] = clip(round(terrain[x] + (depth * depth_factor)), 0, TERRAIN_SIZE_Y)
