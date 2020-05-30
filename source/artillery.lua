@@ -85,6 +85,7 @@ Screen = require("screen")
 		-- setup - Players move their tanks and aim
 		-- action - Shots are fired, projectiles move, players wait
 		phase = "setup"
+		t_setup = 15000 -- Time remaining in setup phase
 	end
 
 	function _step(t)
@@ -191,11 +192,21 @@ Screen = require("screen")
 				circb(players[1].x, terrain[round(players[1].x)], AIM_MAX_LENGTH) -- Aiming circle
 				gfx.line(players[1].x, terrain[round(players[1].x)], players[1].x+players[1].target_x, terrain[round(players[1].x)]+players[1].target_y) -- Aiming line
 				if DEBUG then
-					text.draw_shadowed(round(players[1].target_x) .. ", " .. round(players[1].target_y), font, players[1].x-32, terrain[round(players[1].x)]+64) -- Aiming vector text
+					text.draw_shadowed(round(players[1].target_x) .. ", " .. round(players[1].target_y), font, players[1].x, terrain[round(players[1].x)]+64, true) -- Aiming vector text
+				end
+				
+				-- NOTE This is poorly placed, but for the phase renderer to show the correct phase when cls calls are stopped, the phase change has to be placed HERE!
+				if t_setup < 0 then
+					phase = "action"
+				else
+					t_setup = t_setup - dt_millis
 				end
 				
 				-- Render phase status as it will be in the next loop
-				text.draw_shadowed("Phase: " .. phase, font, (SCREEN_SIZE_X / 2) - 64, 2)
+				text.draw_shadowed("Phase: " .. phase, font, SCREEN_SIZE_X / 2, 2, true)
+				if t_setup > 0 then
+					text.draw_shadowed(round(t_setup / 1000), font, SCREEN_SIZE_X / 2, 12, true)
+				end
 			elseif phase == "action" then
 				-- Render projectiles
 				if #projectiles > 0 then
@@ -205,11 +216,16 @@ Screen = require("screen")
 					end
 				end
 			else
-				text.draw("UNKNOWN PHASE, GAME IS STUCK", font, 2, SCREEN_SIZE_Y / 2 - 4)
+				text.draw_centered("UNKNOWN PHASE, GAME IS STUCK", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 4, true)
 			end
 			
 			-- Debug renders
 			if DEBUG then
+				if not (phase == "setup") then
+					-- Clear the debug outputs so that they can still be read when cls isn't called
+					gfx.fgcolor(gfx.bgcolor())
+					gfx.bar(SCREEN_SIZE_X-100, 0, 100, 64)
+				end
 				gfx.fgcolor(33)
 				
 				-- Palette
@@ -370,10 +386,26 @@ Screen = require("screen")
 		end
 	end
 	
-	function text.draw_shadowed(txt, font, x, y)
+	function text.draw_centered(txt, font, x, y)
+		-- Draw text off-screen to get width
+		local width, height = text.draw(txt, font, 0, -32)
+		-- Draw text on the proper position, but centered
+		text.draw(txt, font, x - (width / 2), y)
+	end
+	
+	function text.draw_shadowed(txt, font, x, y, centered)
+		centered = centered or false
 		gfx.fgcolor(32)
-		text.draw(txt, font, x+1, y+1)
+		if centered then
+			text.draw_centered(txt, font, x+1, y+1)
+		else
+			text.draw(txt, font, x+1, y+1)
+		end
 		gfx.fgcolor(33)
-		text.draw(txt, font, x, y)
+		if centered then
+			text.draw_centered(txt, font, x, y)
+		else
+			text.draw(txt, font, x, y)
+		end
 	end
 -- END GRAPHICS FUNCTIONS
