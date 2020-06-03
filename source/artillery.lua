@@ -20,7 +20,7 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
 
-DEBUG = false
+DEBUG = true
 TARGET_FPS = 60.0
 
 font = text.loadfont("Victoria.8b.gif")
@@ -81,13 +81,12 @@ Screen = require("screen")
 		
 		-- Remove all projectiles
 		projectiles = {}
-		projectiles[1] = projectile_new(players[1].x, terrain[round(players[1].x)], 0.42, -0.42)
 		
 		-- Game phases:
 		-- setup - Players move their tanks and aim
 		-- action - Shots are fired, projectiles move, players wait
 		phase = "setup"
-		t_setup = 15000 -- Time remaining in setup phase
+		t_setup = 5000 -- Time remaining in setup phase
 	end
 
 	function _step(t)
@@ -98,92 +97,92 @@ Screen = require("screen")
 		t_last = t
 		
 		-- BEGIN GAMEPLAY SECTION
-		if phase == "setup" then
-			-- BEGIN INPUT SECTION
-				for i=1,PLAYER_COUNT do
-					-- BEGIN MOVEMENT
-						local direction = 0
-						local speed = 1.5
-						if i==1 then
-							local btn = input.gamepad(0)
-							-- Player
-							if (btn & 2) > 0 then
-								-- Left
-								direction = direction - 1
-							end
-							if (btn & 1) > 0 then
-								-- Right
-								direction = direction + 1
-							end
-						else
-							-- AI
-							-- TODO Implement AI
-						end
-						-- Calculate speed based on height difference
-						local height_diff = math.abs((terrain[round(players[i].x)] or 0) - (terrain[round(players[i].x + direction)] or 0))
-						if not (height_diff == 0) then
-							speed = speed - clip(height_diff/2.5, 0.0, speed)
-						end
-						-- Commit movement
-						players[i].x = clip(players[i].x + (direction * speed * (30 * dt_seconds)), 0, TERRAIN_SIZE_X-1)
-					-- END MOVEMENT
-					-- BEGIN AIMING
-						if i==1 then
-							-- Player
-							-- Get relative position of mouse
-							local mx, my, mbtn = input.mouse()
-							players[1].target_x = mx - players[1].x
-							players[1].target_y = my - terrain[round(players[1].x)]
-						else
-							-- AI
-							-- TODO Implement AI
-						end
-						-- Restrict aiming to allowed vector length
-						-- If the vector is longer than AIM_MAX_LENGTH, normalize the vector (length 1), then scale to AIM_MAX_LENGTH
-						local length = math.sqrt(players[i].target_x^2 + players[i].target_y^2)
-						if length > AIM_MAX_LENGTH then
-							players[i].target_x = (players[i].target_x / length) * AIM_MAX_LENGTH
-							players[i].target_y = (players[i].target_y / length) * AIM_MAX_LENGTH
-						end
-					-- END AIMING
-				end
-			-- END INPUT SECTION
-			
-			-- BEGIN LOGIC SECTION
-				-- Player position sanity checks
-				for i=1,PLAYER_COUNT do
-					players[i].x = clip(players[i].x, 0, TERRAIN_SIZE_X-1)
-				end
-			-- END LOGIC SECTION
-		elseif phase == "action" then
-			-- BEGIN LOGIC SECTION
-				-- Process projectiles
-				if #projectiles > 0 then
-					for i=1,#projectiles do
-						if projectiles[i].alive then
-							-- Projectile movement
-							projectiles[i].x = projectiles[i].x + projectiles[i].move_x
-							projectiles[i].y = projectiles[i].y + projectiles[i].move_y
-							
-							-- Change movement vector for next loop
-							projectiles[i].move_y = projectiles[i].move_y + (GRAVITY * dt_seconds)
-							
-							-- If projectile left the map, despawn
-							if projectiles[i].x < 0 or projectiles[i].x > TERRAIN_SIZE_X-1 or projectiles[i].y > TERRAIN_SIZE_Y-1 then
-								projectiles[i].alive = false
+			if phase == "setup" then
+				-- BEGIN INPUT SECTION
+					for i=1,PLAYER_COUNT do
+						-- BEGIN MOVEMENT
+							local direction = 0
+							local speed = 1.5
+							if i==1 then
+								local btn = input.gamepad(0)
+								-- Player
+								if (btn & 2) > 0 then
+									-- Left
+									direction = direction - 1
+								end
+								if (btn & 1) > 0 then
+									-- Right
+									direction = direction + 1
+								end
 							else
-								-- If projectile hit the terrain, make a hole
-								if projectiles[i].y > terrain[round(projectiles[i].x)] then
+								-- AI
+								-- TODO Implement AI
+							end
+							-- Calculate speed based on height difference
+							local height_diff = math.abs((terrain[round(players[i].x)] or 0) - (terrain[round(players[i].x + direction)] or 0))
+							if not (height_diff == 0) then
+								speed = speed - clip(height_diff/2.5, 0.0, speed)
+							end
+							-- Commit movement
+							players[i].x = clip(players[i].x + (direction * speed * (30 * dt_seconds)), 0, TERRAIN_SIZE_X-1)
+						-- END MOVEMENT
+						-- BEGIN AIMING
+							if i==1 then
+								-- Player
+								-- Get relative position of mouse
+								local mx, my, mbtn = input.mouse()
+								players[1].target_x = mx - players[1].x
+								players[1].target_y = my - terrain[round(players[1].x)]
+							else
+								-- AI
+								-- TODO Implement AI
+							end
+							-- Restrict aiming to allowed vector length
+							-- If the vector is longer than AIM_MAX_LENGTH, normalize the vector (length 1), then scale to AIM_MAX_LENGTH
+							local length = math.sqrt(players[i].target_x^2 + players[i].target_y^2)
+							if length > AIM_MAX_LENGTH then
+								players[i].target_x = (players[i].target_x / length) * AIM_MAX_LENGTH
+								players[i].target_y = (players[i].target_y / length) * AIM_MAX_LENGTH
+							end
+						-- END AIMING
+					end
+				-- END INPUT SECTION
+				
+				-- BEGIN LOGIC SECTION
+					-- Player position sanity checks
+					for i=1,PLAYER_COUNT do
+						players[i].x = clip(players[i].x, 0, TERRAIN_SIZE_X-1)
+					end
+				-- END LOGIC SECTION
+			elseif phase == "action" then
+				-- BEGIN LOGIC SECTION
+					-- Process projectiles
+					if #projectiles > 0 then
+						for i=1,#projectiles do
+							if projectiles[i].alive then
+								-- Projectile movement
+								projectiles[i].x = projectiles[i].x + projectiles[i].move_x
+								projectiles[i].y = projectiles[i].y + projectiles[i].move_y
+								
+								-- Change movement vector for next loop
+								projectiles[i].move_y = projectiles[i].move_y + (GRAVITY * dt_seconds)
+								
+								-- If projectile left the map, despawn
+								if projectiles[i].x < 0 or projectiles[i].x > TERRAIN_SIZE_X-1 or projectiles[i].y > TERRAIN_SIZE_Y-1 then
 									projectiles[i].alive = false
-									terrain_hole(projectiles[i].x, 32, 24, true)
-									terrain_refreshed = true
+								else
+									-- If projectile hit the terrain, make a hole
+									if projectiles[i].y > terrain[round(projectiles[i].x)] then
+										projectiles[i].alive = false
+										terrain_hole(projectiles[i].x, 32, 24, true)
+										terrain_refreshed = true
+									end
 								end
 							end
 						end
 					end
-				end
-			-- END LOGIC SECTION
-		end
+				-- END LOGIC SECTION
+			end
 		-- END GAMEPLAY SECTION
 		
 		-- BEGIN RENDER SECTION
@@ -228,8 +227,14 @@ Screen = require("screen")
 				end
 				
 				-- NOTE This is poorly placed, but for the phase renderer to show the correct phase when cls calls are stopped, the phase change has to be placed HERE!
-				if t_setup < 0 then
+				if (t_setup < 0) and (phase == "setup") then
 					phase = "action"
+					
+					-- Shoot projectiles
+					for i=1,PLAYER_COUNT do
+						-- Spawn new projectile in player's position with player's aim
+						projectiles[#projectiles+1] = projectile_new(players[i].x, terrain[round(players[i].x)], players[i].target_x/25.0, players[i].target_y/25.0)
+					end
 				else
 					t_setup = t_setup - dt_millis
 				end
