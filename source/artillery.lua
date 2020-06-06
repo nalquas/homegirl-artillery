@@ -64,6 +64,7 @@ Screen = require("screen")
 		AIM_MAX_LENGTH = 96
 		GRAVITY = 1.0
 		PHASE_SETUP_TIME = 8000 -- in msec
+		DAMAGE_HIT = 25
 		
 		-- Init game
 		init_game()
@@ -172,8 +173,16 @@ Screen = require("screen")
 								if projectiles[i].x < 0 or projectiles[i].x > TERRAIN_SIZE_X-1 or projectiles[i].y > TERRAIN_SIZE_Y-1 then
 									projectiles[i].alive = false
 								else
-									-- If projectile hit the terrain, make a hole
+									-- If projectile hit the terrain...
 									if projectiles[i].y > terrain[round(projectiles[i].x)] then
+										-- If projectile hit close to player, hurt them
+										for j=1,PLAYER_COUNT do
+											if math.sqrt((players[j].x - projectiles[i].x)^2 + (terrain[clip(round(players[j].x), 0, TERRAIN_SIZE_X-1)] - projectiles[i].y)^2) <= 4 then
+												players[j].hp = players[j].hp - DAMAGE_HIT
+											end
+										end
+										
+										-- Make an impact hole/crater
 										projectiles[i].alive = false
 										terrain_hole(projectiles[i].x, 32, 24, true)
 										terrain_refreshed = true
@@ -225,8 +234,9 @@ Screen = require("screen")
 					local x = players[i].x
 					local y = terrain[round(players[i].x)]
 					-- Vehicle
-					gfx.fgcolor(33)
-					circb(x, y, 4)
+					gfx.fgcolor(35)
+					local player_x_rounded = clip(round(players[i].x), 0, TERRAIN_SIZE_X-1)
+					gfx.tri(player_x_rounded-2, terrain[player_x_rounded-2], player_x_rounded+2, terrain[player_x_rounded+2], player_x_rounded, terrain[player_x_rounded]-3)
 					-- HP display
 					gfx.fgcolor(34)
 					gfx.bar(x-5, y-8, 11, 1)
