@@ -63,6 +63,7 @@ Screen = require("screen")
 		PLAYER_COUNT = 2
 		AIM_MAX_LENGTH = 96
 		GRAVITY = 1.0
+		PHASE_SETUP_TIME = 8000 -- in msec
 		
 		-- Init game
 		init_game()
@@ -86,7 +87,7 @@ Screen = require("screen")
 		-- setup - Players move their tanks and aim
 		-- action - Shots are fired, projectiles move, players wait
 		phase = "setup"
-		t_setup = 5000 -- Time remaining in setup phase
+		t_setup = PHASE_SETUP_TIME -- Time remaining in setup phase
 	end
 
 	function _step(t)
@@ -181,6 +182,21 @@ Screen = require("screen")
 							end
 						end
 					end
+					
+					-- End action phase when all projectiles are gone
+					local end_action_phase = true
+					if #projectiles > 0 then
+						for i=1, #projectiles do
+							if projectiles[i].alive then
+								end_action_phase = false
+								break
+							end
+						end
+					end
+					if end_action_phase then
+						phase = "setup"
+						t_setup = PHASE_SETUP_TIME
+					end
 				-- END LOGIC SECTION
 			end
 		-- END GAMEPLAY SECTION
@@ -250,8 +266,9 @@ Screen = require("screen")
 				if #projectiles > 0 then
 					gfx.fgcolor(34)
 					for i=1,#projectiles do
-						--circ(projectiles[i].x, projectiles[i].y, 1)
-						gfx.pixel(projectiles[i].x, projectiles[i].y, gfx.fgcolor())
+						if projectiles[i].alive then
+							gfx.pixel(projectiles[i].x, projectiles[i].y, gfx.fgcolor())
+						end
 					end
 				end
 			end
