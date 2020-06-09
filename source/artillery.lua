@@ -22,8 +22,10 @@
 
 DEBUG = true
 TARGET_FPS = 60.0
+RELEASE_DATE = "2020-06-09"
 
 font = text.loadfont("Victoria.8b.gif")
+titlefont = text.loadfont("techbreak.16c.gif")
 Screen = require("screen")
 
 -- BEGIN MAIN FUNCTIONS
@@ -33,6 +35,7 @@ Screen = require("screen")
 		scrn:colors(33, 32)
 		
 		t_last = 0
+		btn_last = 0
 		
 		if DEBUG then
 			homegirl_lastFPSflush = 0
@@ -67,8 +70,8 @@ Screen = require("screen")
 		DAMAGE_HIT = 25
 		
 		-- Init game
-		mode = "game" -- Modes: "title", "game"
-		init_game()
+		mode = "title" -- Modes: "title", "game"
+		--init_game()
 	end
 
 	function init_game()
@@ -91,18 +94,68 @@ Screen = require("screen")
 		phase = "setup"
 		t_setup = PHASE_SETUP_TIME -- Time remaining in setup phase
 	end
-
+	
+	-- Menu content
+	menu_selected = 1
+	menu = {}
+	menu[1] = "New Game"
+	menu[2] = "Exit to Workshop"
+	
 	function _step(t)
 		-- Calculate delta time
 		if t_last == 0 then t_last = t-1 end
-		dt_millis = t - t_last
-		dt_seconds = dt_millis * 0.001
+		local dt_millis = t - t_last
+		local dt_seconds = dt_millis * 0.001
 		t_last = t
+		
+		-- Update button map
+		btn_last = btn
+		btn = input.gamepad(0)
 		
 		if mode == "title" then
 			-- BEGIN MENU SECTION
+				
+				-- Version
 				gfx.fgcolor(33)
-				text.draw_centered("Artillery", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 4 - 4)
+				text.draw("Version as of " .. RELEASE_DATE, font, 1, 1)
+				
+				-- Title
+				gfx.fgcolor(33)
+				text.draw_centered("Artillery", titlefont, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 4 - 4)
+				
+				-- Menu Processing
+				if ((btn & 4) > 0) and not ((btn_last & 4) > 0) then
+					-- Up
+					menu_selected = menu_selected - 1
+				end
+				if ((btn & 8) > 0) and not ((btn_last & 8) > 0) then
+					-- Down
+					menu_selected = menu_selected + 1
+				end
+				menu_selected = clip(menu_selected, 1, #menu)
+				if ((btn & 128) > 0) and not ((btn_last & 128) > 0) then
+					-- Y/Z
+					if menu_selected == 1 then
+						-- Start new game
+						mode = "game"
+						init_game()
+					elseif menu_selected == 2 then
+						-- Exit to workshop
+						game_exit()
+					end
+				end
+				
+				-- Menu Rendering
+				for i=1,#menu do
+					if (i == menu_selected) and (math.floor(t / 150.0) % 2 == 0) then gfx.fgcolor(34) else gfx.fgcolor(33) end
+					text.draw_centered(menu[i], font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - ((#menu * 9) / 2) + ((i - 1) * 9))
+				end
+				
+				-- Credits / Copyright notice
+				gfx.fgcolor(33)
+				text.draw_centered("(C) Nalquas, 2020", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y - 30)
+				text.draw_centered("Licensed under the MIT license", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y - 21)
+				text.draw_centered("https://github.com/nalquas/homegirl-artillery", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y - 12)
 			-- END MENU SECTION
 		elseif mode == "game" then
 			-- BEGIN GAMEPLAY SECTION
@@ -113,7 +166,6 @@ Screen = require("screen")
 								local direction = 0
 								local speed = 1.5
 								if i==1 then
-									local btn = input.gamepad(0)
 									-- Player
 									if (btn & 2) > 0 then
 										-- Left
@@ -291,7 +343,7 @@ Screen = require("screen")
 				end
 				if not (phase == "setup" or phase == "action") then
 					gfx.fgcolor(33)
-					text.draw_centered("UNKNOWN PHASE, GAME IS STUCK", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 4)
+					text.draw_centered("UNKNOWN PHASE \"" .. tostring(phase) .. "\", GAME IS STUCK", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 4)
 				end
 				
 				-- Debug renders
@@ -319,14 +371,13 @@ Screen = require("screen")
 			-- END RENDER SECTION
 		else
 			gfx.fgcolor(33)
-			text.draw_centered("UNKNOWN MODE, GAME IS STUCK", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 4)
+			text.draw_centered("UNKNOWN MODE \"" .. tostring(mode) .. "\", GAME IS STUCK", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 4)
 		end
 		
 		-- BEGIN HOTKEY SECTION
 			-- Check if we have to exit
 			if input.hotkey() == "\x1b" or input.hotkey() == "q" then
-				print("Thank you for playing Artillery by Nalquas.")
-				sys.exit(0)
+				game_exit()
 			end
 		-- END HOTKEY SECTION
 		
@@ -438,6 +489,11 @@ Screen = require("screen")
 	function round(x)
 		if x<0 then return math.ceil(x-0.5) end
 		return math.floor(x+0.5)
+	end
+	
+	function game_exit()
+		print("Thank you for playing Artillery (" .. RELEASE_DATE .. ") by Nalquas.")
+		sys.exit(0)
 	end
 -- END HELPER FUNCTIONS
 
