@@ -67,6 +67,7 @@ Screen = require("screen")
 		DAMAGE_HIT = 25
 		
 		-- Init game
+		mode = "game" -- Modes: "title", "game"
 		init_game()
 	end
 
@@ -98,219 +99,228 @@ Screen = require("screen")
 		dt_seconds = dt_millis * 0.001
 		t_last = t
 		
-		-- BEGIN GAMEPLAY SECTION
-			if phase == "setup" then
-				-- BEGIN INPUT SECTION
-					for i=1,PLAYER_COUNT do
-						-- BEGIN MOVEMENT
-							local direction = 0
-							local speed = 1.5
-							if i==1 then
-								local btn = input.gamepad(0)
-								-- Player
-								if (btn & 2) > 0 then
-									-- Left
-									direction = direction - 1
-								end
-								if (btn & 1) > 0 then
-									-- Right
-									direction = direction + 1
-								end
-							else
-								-- AI
-								-- TODO Implement AI
-							end
-							-- Calculate speed based on height difference
-							local height_diff = math.abs((terrain[round(players[i].x)] or 0) - (terrain[round(players[i].x + direction)] or 0))
-							if not (height_diff == 0) then
-								speed = speed - clip(height_diff/2.5, 0.0, speed)
-							end
-							-- Commit movement
-							players[i].x = clip(players[i].x + (direction * speed * (30 * dt_seconds)), 0, TERRAIN_SIZE_X-1)
-						-- END MOVEMENT
-						-- BEGIN AIMING
-							if i==1 then
-								-- Player
-								-- Get relative position of mouse
-								local mx, my, mbtn = input.mouse()
-								players[1].target_x = mx - players[1].x
-								players[1].target_y = my - terrain[round(players[1].x)]
-							else
-								-- AI
-								-- TODO Implement AI
-							end
-							-- Restrict aiming to allowed vector length
-							-- If the vector is longer than AIM_MAX_LENGTH, normalize the vector (length 1), then scale to AIM_MAX_LENGTH
-							local length = math.sqrt(players[i].target_x^2 + players[i].target_y^2)
-							if length > AIM_MAX_LENGTH then
-								players[i].target_x = (players[i].target_x / length) * AIM_MAX_LENGTH
-								players[i].target_y = (players[i].target_y / length) * AIM_MAX_LENGTH
-							end
-						-- END AIMING
-					end
-				-- END INPUT SECTION
-				
-				-- BEGIN LOGIC SECTION
-					-- Player position sanity checks
-					for i=1,PLAYER_COUNT do
-						players[i].x = clip(players[i].x, 0, TERRAIN_SIZE_X-1)
-					end
-				-- END LOGIC SECTION
-			elseif phase == "action" then
-				-- BEGIN LOGIC SECTION
-					-- Process projectiles
-					if #projectiles > 0 then
-						for i=1,#projectiles do
-							if projectiles[i].alive then
-								-- Projectile movement
-								projectiles[i].x = projectiles[i].x + projectiles[i].move_x
-								projectiles[i].y = projectiles[i].y + projectiles[i].move_y
-								
-								-- Change movement vector for next loop
-								projectiles[i].move_y = projectiles[i].move_y + (GRAVITY * dt_seconds)
-								
-								-- If projectile left the map, despawn
-								if projectiles[i].x < 0 or projectiles[i].x > TERRAIN_SIZE_X-1 or projectiles[i].y > TERRAIN_SIZE_Y-1 then
-									projectiles[i].alive = false
+		if mode == "title" then
+			-- BEGIN MENU SECTION
+				gfx.fgcolor(33)
+				text.draw_centered("Artillery", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 4 - 4)
+			-- END MENU SECTION
+		elseif mode == "game" then
+			-- BEGIN GAMEPLAY SECTION
+				if phase == "setup" then
+					-- BEGIN INPUT SECTION
+						for i=1,PLAYER_COUNT do
+							-- BEGIN MOVEMENT
+								local direction = 0
+								local speed = 1.5
+								if i==1 then
+									local btn = input.gamepad(0)
+									-- Player
+									if (btn & 2) > 0 then
+										-- Left
+										direction = direction - 1
+									end
+									if (btn & 1) > 0 then
+										-- Right
+										direction = direction + 1
+									end
 								else
-									-- If projectile hit the terrain...
-									if projectiles[i].y > terrain[round(projectiles[i].x)] then
-										-- If projectile hit close to player, hurt them
-										for j=1,PLAYER_COUNT do
-											if math.sqrt((players[j].x - projectiles[i].x)^2 + (terrain[clip(round(players[j].x), 0, TERRAIN_SIZE_X-1)] - projectiles[i].y)^2) <= 4 then
-												players[j].hp = players[j].hp - DAMAGE_HIT
-											end
-										end
-										
-										-- Make an impact hole/crater
+									-- AI
+									-- TODO Implement AI
+								end
+								-- Calculate speed based on height difference
+								local height_diff = math.abs((terrain[round(players[i].x)] or 0) - (terrain[round(players[i].x + direction)] or 0))
+								if not (height_diff == 0) then
+									speed = speed - clip(height_diff/2.5, 0.0, speed)
+								end
+								-- Commit movement
+								players[i].x = clip(players[i].x + (direction * speed * (30 * dt_seconds)), 0, TERRAIN_SIZE_X-1)
+							-- END MOVEMENT
+							-- BEGIN AIMING
+								if i==1 then
+									-- Player
+									-- Get relative position of mouse
+									local mx, my, mbtn = input.mouse()
+									players[1].target_x = mx - players[1].x
+									players[1].target_y = my - terrain[round(players[1].x)]
+								else
+									-- AI
+									-- TODO Implement AI
+								end
+								-- Restrict aiming to allowed vector length
+								-- If the vector is longer than AIM_MAX_LENGTH, normalize the vector (length 1), then scale to AIM_MAX_LENGTH
+								local length = math.sqrt(players[i].target_x^2 + players[i].target_y^2)
+								if length > AIM_MAX_LENGTH then
+									players[i].target_x = (players[i].target_x / length) * AIM_MAX_LENGTH
+									players[i].target_y = (players[i].target_y / length) * AIM_MAX_LENGTH
+								end
+							-- END AIMING
+						end
+					-- END INPUT SECTION
+					
+					-- BEGIN LOGIC SECTION
+						-- Player position sanity checks
+						for i=1,PLAYER_COUNT do
+							players[i].x = clip(players[i].x, 0, TERRAIN_SIZE_X-1)
+						end
+					-- END LOGIC SECTION
+				elseif phase == "action" then
+					-- BEGIN LOGIC SECTION
+						-- Process projectiles
+						if #projectiles > 0 then
+							for i=1,#projectiles do
+								if projectiles[i].alive then
+									-- Projectile movement
+									projectiles[i].x = projectiles[i].x + projectiles[i].move_x
+									projectiles[i].y = projectiles[i].y + projectiles[i].move_y
+									
+									-- Change movement vector for next loop
+									projectiles[i].move_y = projectiles[i].move_y + (GRAVITY * dt_seconds)
+									
+									-- If projectile left the map, despawn
+									if projectiles[i].x < 0 or projectiles[i].x > TERRAIN_SIZE_X-1 or projectiles[i].y > TERRAIN_SIZE_Y-1 then
 										projectiles[i].alive = false
-										terrain_hole(projectiles[i].x, 32, 24, true)
-										terrain_refreshed = true
+									else
+										-- If projectile hit the terrain...
+										if projectiles[i].y > terrain[round(projectiles[i].x)] then
+											-- If projectile hit close to player, hurt them
+											for j=1,PLAYER_COUNT do
+												if math.sqrt((players[j].x - projectiles[i].x)^2 + (terrain[clip(round(players[j].x), 0, TERRAIN_SIZE_X-1)] - projectiles[i].y)^2) <= 4 then
+													players[j].hp = players[j].hp - DAMAGE_HIT
+												end
+											end
+											
+											-- Make an impact hole/crater
+											projectiles[i].alive = false
+											terrain_hole(projectiles[i].x, 32, 24, true)
+											terrain_refreshed = true
+										end
 									end
 								end
 							end
 						end
+						
+						-- End action phase when all projectiles are gone
+						local end_action_phase = true
+						if #projectiles > 0 then
+							for i=1, #projectiles do
+								if projectiles[i].alive then
+									end_action_phase = false
+									break
+								end
+							end
+						end
+						if end_action_phase then
+							phase = "setup"
+							t_setup = PHASE_SETUP_TIME
+						end
+					-- END LOGIC SECTION
+				end
+			-- END GAMEPLAY SECTION
+			
+			-- BEGIN RENDER SECTION
+				if phase == "setup" or terrain_refreshed then
+					terrain_refreshed = false
+					
+					if phase == "setup" then
+						-- Clear screen (only in setup phase)
+						gfx.bgcolor(37)
+						gfx.cls()
 					end
 					
-					-- End action phase when all projectiles are gone
-					local end_action_phase = true
+					-- Render terrain
+					--gfx.fgcolor(35)
+					--for x=1,TERRAIN_SIZE_X-1 do
+					--	gfx.line(x-1, terrain[x-1], x, terrain[x])
+					--end
+					for x=0,TERRAIN_SIZE_X-1 do
+						image.tri(spritesheet, x,terrain[x], x,terrain[x], x,TERRAIN_SIZE_Y-1, 32+(x%32),terrain[x], 32+(x%32),terrain[x], 32+(x%32),TERRAIN_SIZE_Y)
+					end
+					
+					-- Render players
+					for i=1,PLAYER_COUNT do
+						local x = players[i].x
+						local y = terrain[round(players[i].x)]
+						-- Vehicle
+						gfx.fgcolor(35)
+						local player_x_rounded = clip(round(players[i].x), 0, TERRAIN_SIZE_X-1)
+						gfx.tri(player_x_rounded-2, terrain[player_x_rounded-2], player_x_rounded+2, terrain[player_x_rounded+2], player_x_rounded, terrain[player_x_rounded]-3)
+						-- HP display
+						gfx.fgcolor(34)
+						gfx.bar(x-5, y-8, 11, 1)
+						gfx.fgcolor(35)
+						gfx.bar(x-5, y-8, 11*(players[i].hp/100), 1)
+					end
+				
+					-- Render overlay
+					gfx.fgcolor(33)
+					circb(players[1].x, terrain[round(players[1].x)], AIM_MAX_LENGTH) -- Aiming circle
+					gfx.line(players[1].x, terrain[round(players[1].x)], players[1].x+players[1].target_x, terrain[round(players[1].x)]+players[1].target_y) -- Aiming line
+					if DEBUG then
+						text.draw_shadowed(round(players[1].target_x) .. ", " .. round(players[1].target_y), font, players[1].x, terrain[round(players[1].x)]+64, true) -- Aiming vector text
+					end
+					
+					-- NOTE This is poorly placed, but for the phase renderer to show the correct phase when cls calls are stopped, the phase change has to be placed HERE!
+					if (t_setup < 0) and (phase == "setup") then
+						phase = "action"
+						
+						-- Shoot projectiles
+						for i=1,PLAYER_COUNT do
+							-- Spawn new projectile in player's position with player's aim
+							projectiles[#projectiles+1] = projectile_new(players[i].x, terrain[round(players[i].x)], players[i].target_x/25.0, players[i].target_y/25.0)
+						end
+					else
+						t_setup = t_setup - dt_millis
+					end
+					
+					-- Render phase status as it will be in the next loop
+					text.draw_shadowed("Phase: " .. phase, font, SCREEN_SIZE_X / 2, 2, true)
+					if t_setup > 0 then
+						text.draw_shadowed(round(t_setup / 1000), font, SCREEN_SIZE_X / 2, 12, true)
+					end
+				end
+				if phase == "action" then
+					-- Render projectiles
 					if #projectiles > 0 then
-						for i=1, #projectiles do
+						gfx.fgcolor(34)
+						for i=1,#projectiles do
 							if projectiles[i].alive then
-								end_action_phase = false
-								break
+								gfx.pixel(projectiles[i].x, projectiles[i].y, gfx.fgcolor())
 							end
 						end
 					end
-					if end_action_phase then
-						phase = "setup"
-						t_setup = PHASE_SETUP_TIME
-					end
-				-- END LOGIC SECTION
-			end
-		-- END GAMEPLAY SECTION
-		
-		-- BEGIN RENDER SECTION
-			if phase == "setup" or terrain_refreshed then
-				terrain_refreshed = false
-				
-				if phase == "setup" then
-					-- Clear screen (only in setup phase)
-					gfx.bgcolor(37)
-					gfx.cls()
+				end
+				if not (phase == "setup" or phase == "action") then
+					gfx.fgcolor(33)
+					text.draw_centered("UNKNOWN PHASE, GAME IS STUCK", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 4)
 				end
 				
-				-- Render terrain
-				--gfx.fgcolor(35)
-				--for x=1,TERRAIN_SIZE_X-1 do
-				--	gfx.line(x-1, terrain[x-1], x, terrain[x])
-				--end
-				for x=0,TERRAIN_SIZE_X-1 do
-					image.tri(spritesheet, x,terrain[x], x,terrain[x], x,TERRAIN_SIZE_Y-1, 32+(x%32),terrain[x], 32+(x%32),terrain[x], 32+(x%32),TERRAIN_SIZE_Y)
-				end
-				
-				-- Render players
-				for i=1,PLAYER_COUNT do
-					local x = players[i].x
-					local y = terrain[round(players[i].x)]
-					-- Vehicle
-					gfx.fgcolor(35)
-					local player_x_rounded = clip(round(players[i].x), 0, TERRAIN_SIZE_X-1)
-					gfx.tri(player_x_rounded-2, terrain[player_x_rounded-2], player_x_rounded+2, terrain[player_x_rounded+2], player_x_rounded, terrain[player_x_rounded]-3)
-					-- HP display
-					gfx.fgcolor(34)
-					gfx.bar(x-5, y-8, 11, 1)
-					gfx.fgcolor(35)
-					gfx.bar(x-5, y-8, 11*(players[i].hp/100), 1)
-				end
-			
-				-- Render overlay
-				gfx.fgcolor(33)
-				circb(players[1].x, terrain[round(players[1].x)], AIM_MAX_LENGTH) -- Aiming circle
-				gfx.line(players[1].x, terrain[round(players[1].x)], players[1].x+players[1].target_x, terrain[round(players[1].x)]+players[1].target_y) -- Aiming line
+				-- Debug renders
 				if DEBUG then
-					text.draw_shadowed(round(players[1].target_x) .. ", " .. round(players[1].target_y), font, players[1].x, terrain[round(players[1].x)]+64, true) -- Aiming vector text
-				end
-				
-				-- NOTE This is poorly placed, but for the phase renderer to show the correct phase when cls calls are stopped, the phase change has to be placed HERE!
-				if (t_setup < 0) and (phase == "setup") then
-					phase = "action"
+					if not (phase == "setup") then
+						-- Clear the debug outputs so that they can still be read when cls isn't called
+						gfx.fgcolor(gfx.bgcolor())
+						gfx.bar(SCREEN_SIZE_X-100, 0, 100, 64)
+					end
+					gfx.fgcolor(33)
 					
-					-- Shoot projectiles
-					for i=1,PLAYER_COUNT do
-						-- Spawn new projectile in player's position with player's aim
-						projectiles[#projectiles+1] = projectile_new(players[i].x, terrain[round(players[i].x)], players[i].target_x/25.0, players[i].target_y/25.0)
+					-- Palette
+					text.draw("Current palette", font, 0, 2)
+					show_palette()
+					
+					-- Performance
+					homegirlfps_accum = homegirlfps_accum + 1
+					if t-homegirl_lastFPSflush>=1000 then
+						homegirlfps = homegirlfps_accum
+						homegirlfps_accum = 0
+						homegirl_lastFPSflush = t
 					end
-				else
-					t_setup = t_setup - dt_millis
+					text.draw("t = " .. t .. "\ndt = " .. dt_millis .. "\nFPS(dt): " .. round(1000.0/dt_millis) .."\nFPS: " .. homegirlfps, font, SCREEN_SIZE_X - 100, 2)
 				end
-				
-				-- Render phase status as it will be in the next loop
-				text.draw_shadowed("Phase: " .. phase, font, SCREEN_SIZE_X / 2, 2, true)
-				if t_setup > 0 then
-					text.draw_shadowed(round(t_setup / 1000), font, SCREEN_SIZE_X / 2, 12, true)
-				end
-			end
-			if phase == "action" then
-				-- Render projectiles
-				if #projectiles > 0 then
-					gfx.fgcolor(34)
-					for i=1,#projectiles do
-						if projectiles[i].alive then
-							gfx.pixel(projectiles[i].x, projectiles[i].y, gfx.fgcolor())
-						end
-					end
-				end
-			end
-			if not (phase == "setup" or phase == "action") then
-				text.draw_centered("UNKNOWN PHASE, GAME IS STUCK", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 4, true)
-			end
-			
-			-- Debug renders
-			if DEBUG then
-				if not (phase == "setup") then
-					-- Clear the debug outputs so that they can still be read when cls isn't called
-					gfx.fgcolor(gfx.bgcolor())
-					gfx.bar(SCREEN_SIZE_X-100, 0, 100, 64)
-				end
-				gfx.fgcolor(33)
-				
-				-- Palette
-				text.draw("Current palette", font, 0, 2)
-				show_palette()
-				
-				-- Performance
-				homegirlfps_accum = homegirlfps_accum + 1
-				if t-homegirl_lastFPSflush>=1000 then
-					homegirlfps = homegirlfps_accum
-					homegirlfps_accum = 0
-					homegirl_lastFPSflush = t
-				end
-				text.draw("t = " .. t .. "\ndt = " .. dt_millis .. "\nFPS(dt): " .. round(1000.0/dt_millis) .."\nFPS: " .. homegirlfps, font, SCREEN_SIZE_X - 100, 2)
-			end
-			
-			scrn:step()
-		-- END RENDER SECTION
+			-- END RENDER SECTION
+		else
+			gfx.fgcolor(33)
+			text.draw_centered("UNKNOWN MODE, GAME IS STUCK", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 4)
+		end
 		
 		-- BEGIN HOTKEY SECTION
 			-- Check if we have to exit
@@ -319,6 +329,8 @@ Screen = require("screen")
 				sys.exit(0)
 			end
 		-- END HOTKEY SECTION
+		
+		scrn:step()
 	end
 -- END MAIN FUNCTIONS
 
