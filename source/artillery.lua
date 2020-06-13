@@ -67,7 +67,7 @@ Screen = require("screen")
 		AIM_MAX_LENGTH = 96
 		GRAVITY = 1.0
 		PHASE_SETUP_TIME = 8000 -- in msec
-		GAMEOVER_SCREEN_LENGTH = 5000 -- in msec
+		GAMEOVER_SCREEN_TIME = 4000 -- in msec
 		DAMAGE_HIT = 25
 		
 		-- Init game
@@ -94,6 +94,7 @@ Screen = require("screen")
 		-- action - Shots are fired, projectiles move, players wait
 		phase = "setup"
 		t_setup = PHASE_SETUP_TIME -- Time remaining in setup phase
+		t_gameover = GAMEOVER_SCREEN_TIME -- Time remaining showing gameover screen
 	end
 	
 	-- Menu content
@@ -279,6 +280,20 @@ Screen = require("screen")
 						if end_action_phase then
 							phase = "setup"
 							t_setup = PHASE_SETUP_TIME
+						
+							-- End game if player is dead or all others are dead
+							local end_game = true
+							if players[1].hp > 0 and #players > 1 then
+								for i=2,#players do
+									if players[i].hp > 0 then
+										end_game = false
+										break
+									end
+								end
+							end
+							if end_game then
+								mode = "gameover"
+							end
 						end
 					-- END LOGIC SECTION
 				end
@@ -384,6 +399,35 @@ Screen = require("screen")
 					text.draw("t = " .. t .. "\ndt = " .. dt_millis .. "\nFPS(dt): " .. round(1000.0/dt_millis) .."\nFPS: " .. homegirlfps, font, SCREEN_SIZE_X - 100, 2)
 				end
 			-- END RENDER SECTION
+		elseif mode == "gameover" then
+			-- BEGIN GAMEOVER SECTION
+				-- Clear screen
+				gfx.bgcolor(32)
+				gfx.cls()
+				
+				-- Show victory/gameover result
+				if players[1].hp > 0 then
+					gfx.fgcolor(35)
+					text.draw_centered("VICTORY!", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 8)
+					gfx.fgcolor(33)
+					text.draw_centered("Remaining HP: " .. players[1].hp, font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 + 8)
+				else
+					gfx.fgcolor(34)
+					text.draw_centered("GAME OVER!", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 8)
+					gfx.fgcolor(33)
+					text.draw_centered("You died.", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 + 8)
+				end
+				
+				-- Show remaining time in gameover screen
+				gfx.fgcolor(33)
+				gfx.bar(0, SCREEN_SIZE_Y-1, (t_gameover / GAMEOVER_SCREEN_TIME) * SCREEN_SIZE_X, 1)
+				
+				-- Gameover timeout
+				t_gameover = t_gameover - dt_millis
+				if t_gameover < 0 then
+					mode = "title"
+				end
+			-- END GAMEOVER SECTION
 		else
 			gfx.fgcolor(33)
 			text.draw_centered("UNKNOWN MODE \"" .. tostring(mode) .. "\", GAME IS STUCK", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - 4)
