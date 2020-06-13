@@ -22,7 +22,7 @@
 
 DEBUG = true
 TARGET_FPS = 60.0
-RELEASE_DATE = "2020-06-09"
+RELEASE_DATE = "2020-06-13"
 
 font = text.loadfont("Victoria.8b.gif")
 titlefont = text.loadfont("techbreak.16c.gif")
@@ -35,7 +35,7 @@ Screen = require("screen")
 		scrn:colors(33, 32)
 		
 		t_last = 0
-		btn_last = 0
+		btnmap_last = 0
 		
 		if DEBUG then
 			homegirl_lastFPSflush = 0
@@ -67,10 +67,11 @@ Screen = require("screen")
 		AIM_MAX_LENGTH = 96
 		GRAVITY = 1.0
 		PHASE_SETUP_TIME = 8000 -- in msec
+		GAMEOVER_SCREEN_LENGTH = 5000 -- in msec
 		DAMAGE_HIT = 25
 		
 		-- Init game
-		mode = "title" -- Modes: "title", "game"
+		mode = "title" -- Modes: "title", "game", "gameover"
 		--init_game()
 	end
 
@@ -110,8 +111,8 @@ Screen = require("screen")
 		t_last = t
 		
 		-- Update button map
-		btn_last = btn
-		btn = input.gamepad(0)
+		btnmap_last = btnmap
+		btnmap = input.gamepad(0)
 		
 		if mode == "title" then
 			-- BEGIN MENU SECTION
@@ -127,16 +128,16 @@ Screen = require("screen")
 				text.draw_centered("Artillery", titlefont, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 4 - 4)
 				
 				-- Menu Processing
-				if ((btn & 4) > 0) and not ((btn_last & 4) > 0) then
+				if btnp(0) then
 					-- Up
 					menu_selected = menu_selected - 1
 				end
-				if ((btn & 8) > 0) and not ((btn_last & 8) > 0) then
+				if btnp(1) then
 					-- Down
 					menu_selected = menu_selected + 1
 				end
 				menu_selected = clip(menu_selected, 1, #menu)
-				if ((btn & 128) > 0) and not ((btn_last & 128) > 0) then
+				if btnp(4) then
 					-- Y/Z
 					if menu_selected == 1 then
 						-- Start new game
@@ -181,11 +182,11 @@ Screen = require("screen")
 								local speed = 1.5
 								if i==1 then
 									-- Player
-									if (btn & 2) > 0 then
+									if btn(2) then
 										-- Left
 										direction = direction - 1
 									end
-									if (btn & 1) > 0 then
+									if btn(3) then
 										-- Right
 										direction = direction + 1
 									end
@@ -491,6 +492,32 @@ Screen = require("screen")
 -- END TERRAIN FUNCTIONS
 
 -- BEGIN HELPER FUNCTIONS
+	function btn(id, buttonmap)
+		buttonmap = buttonmap or btnmap
+		if id == 3 then
+			return (buttonmap & 1) > 0
+		elseif id == 2 then
+			return (buttonmap & 2) > 0
+		elseif id == 0 then
+			return (buttonmap & 4) > 0
+		elseif id == 1 then
+			return (buttonmap & 8) > 0
+		elseif id == 6 then
+			return (buttonmap & 16) > 0
+		elseif id == 7 then
+			return (buttonmap & 32) > 0
+		elseif id == 5 then
+			return (buttonmap & 64) > 0
+		elseif id == 4 then
+			return (buttonmap & 128) > 0
+		end
+		return (buttonmap & (2^id)) > 0
+	end
+
+	function btnp(id)
+		return btn(id, btnmap) and not btn(id, btnmap_last)
+	end
+
 	function clip(x, min, max)
 		if x<min then
 			x=min
