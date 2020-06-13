@@ -99,7 +99,8 @@ Screen = require("screen")
 	menu_selected = 1
 	menu = {}
 	menu[1] = "New Game"
-	menu[2] = "Exit to Workshop"
+	menu[2] = "Target FPS: " .. TARGET_FPS
+	menu[3] = "Exit to Workshop"
 	
 	function _step(t)
 		-- Calculate delta time
@@ -114,6 +115,8 @@ Screen = require("screen")
 		
 		if mode == "title" then
 			-- BEGIN MENU SECTION
+				gfx.bgcolor(32)
+				gfx.cls()
 				
 				-- Version
 				gfx.fgcolor(33)
@@ -140,6 +143,17 @@ Screen = require("screen")
 						mode = "game"
 						init_game()
 					elseif menu_selected == 2 then
+						-- Change target framerate
+						if TARGET_FPS == 30.0 then
+							TARGET_FPS = 48.0
+						elseif TARGET_FPS == 48.0 then
+							TARGET_FPS = 60.0
+						else
+							TARGET_FPS = 30.0
+						end
+						menu[2] = "Target FPS: " .. TARGET_FPS
+						sys.stepinterval(1000/TARGET_FPS)
+					elseif menu_selected == 3 then
 						-- Exit to workshop
 						game_exit()
 					end
@@ -222,8 +236,8 @@ Screen = require("screen")
 							for i=1,#projectiles do
 								if projectiles[i].alive then
 									-- Projectile movement
-									projectiles[i].x = projectiles[i].x + projectiles[i].move_x
-									projectiles[i].y = projectiles[i].y + projectiles[i].move_y
+									projectiles[i].x = projectiles[i].x + (projectiles[i].move_x * dt_seconds * 60)
+									projectiles[i].y = projectiles[i].y + (projectiles[i].move_y * dt_seconds * 60)
 									
 									-- Change movement vector for next loop
 									projectiles[i].move_y = projectiles[i].move_y + (GRAVITY * dt_seconds)
