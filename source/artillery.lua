@@ -67,12 +67,20 @@ Screen = require("screen")
 		TERRAIN_HEIGHT_BASE = round((TERRAIN_SIZE_Y / 3) * 2)
 		TERRAIN_HEIGHT_DEVIATION_MAX = round(TERRAIN_SIZE_Y / 5)
 		
-		PLAYER_COUNT = 4
+		PLAYER_COUNT = 2
 		AIM_MAX_LENGTH = 96
 		GRAVITY = 1.0
 		PHASE_SETUP_TIME = 8000 -- in msec
 		GAMEOVER_SCREEN_TIME = 4000 -- in msec
 		DAMAGE_HIT = 25
+		
+		-- Menu content
+		menu_selected = 1
+		menu = {}
+		menu[1] = "New Game"
+		menu[2] = "Enemies: " .. PLAYER_COUNT - 1
+		menu[3] = "Target FPS: " .. TARGET_FPS
+		menu[4] = "Exit to Workshop"
 		
 		-- Init game
 		mode = "title" -- Modes: "title", "game", "gameover"
@@ -100,13 +108,6 @@ Screen = require("screen")
 		t_setup = PHASE_SETUP_TIME -- Time remaining in setup phase
 		t_gameover = GAMEOVER_SCREEN_TIME -- Time remaining showing gameover screen
 	end
-	
-	-- Menu content
-	menu_selected = 1
-	menu = {}
-	menu[1] = "New Game"
-	menu[2] = "Target FPS: " .. TARGET_FPS
-	menu[3] = "Exit to Workshop"
 	
 	function _step(t)
 		-- Calculate delta time
@@ -155,6 +156,10 @@ Screen = require("screen")
 						mode = "game"
 						init_game()
 					elseif menu_selected == 2 then
+						PLAYER_COUNT = PLAYER_COUNT + 1
+						if PLAYER_COUNT > 8 then PLAYER_COUNT = 2 end
+						menu[2] = "Enemies: " .. PLAYER_COUNT - 1
+					elseif menu_selected == 3 then
 						-- Change target framerate
 						if TARGET_FPS == 30.0 then
 							TARGET_FPS = 48.0
@@ -163,9 +168,9 @@ Screen = require("screen")
 						else
 							TARGET_FPS = 30.0
 						end
-						menu[2] = "Target FPS: " .. TARGET_FPS
+						menu[3] = "Target FPS: " .. TARGET_FPS
 						sys.stepinterval(1000/TARGET_FPS)
-					elseif menu_selected == 3 then
+					elseif menu_selected == 4 then
 						-- Exit to workshop
 						game_exit()
 					end
