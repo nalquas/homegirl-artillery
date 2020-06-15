@@ -20,7 +20,7 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
 
-DEBUG = true
+DEBUG = false
 TARGET_FPS = 60.0
 RELEASE_DATE = "2020-06-15"
 
@@ -67,7 +67,7 @@ Screen = require("screen")
 		TERRAIN_HEIGHT_BASE = round((TERRAIN_SIZE_Y / 3) * 2)
 		TERRAIN_HEIGHT_DEVIATION_MAX = round(TERRAIN_SIZE_Y / 5)
 		
-		PLAYER_COUNT = 2
+		PLAYER_COUNT = 4
 		AIM_MAX_LENGTH = 96
 		GRAVITY = 1.0
 		PHASE_SETUP_TIME = 8000 -- in msec
@@ -233,7 +233,7 @@ Screen = require("screen")
 									-- Select a player to target, but make sure we don't target ourselves
 									::RETARGET_PLAYER::
 									local targeted_player = math.random(1,#players)
-									if targeted_player == i and #players > 1 then goto RETARGET_PLAYER end
+									if (targeted_player == i or ((not (targeted_player == i)) and players[targeted_player].hp < 0)) and #players > 1 then goto RETARGET_PLAYER end
 									
 									-- Calculate targeting parameters for f(x) = ax² + bx
 									-- WARNING This isn't quite working, so I added some math.random() to spice it up a bit
@@ -289,7 +289,7 @@ Screen = require("screen")
 										if projectiles[i].y > terrain[round(projectiles[i].x)] then
 											-- If projectile hit close to player, hurt them
 											for j=1,PLAYER_COUNT do
-												if math.sqrt((players[j].x - projectiles[i].x)^2 + (terrain[clip(round(players[j].x), 0, TERRAIN_SIZE_X-1)] - projectiles[i].y)^2) <= 6.66 then
+												if math.sqrt((players[j].x - projectiles[i].x)^2 + (terrain[clip(round(players[j].x), 0, TERRAIN_SIZE_X-1)] - projectiles[i].y)^2) <= 7.5 then
 													players[j].hp = players[j].hp - DAMAGE_HIT
 												end
 											end
@@ -347,10 +347,10 @@ Screen = require("screen")
 						
 						-- Render sky
 						gfx.bgcolor(130)
-						local barheight = SCREEN_SIZE_Y / 16.0
+						local barheight = SCREEN_SIZE_Y / 15.0
 						for i=0,15 do
 							gfx.fgcolor(143 - i)
-							gfx.bar(0, i*(barheight-1), SCREEN_SIZE_X, barheight)
+							gfx.bar(0, i*barheight, SCREEN_SIZE_X, barheight+1)
 						end
 					end
 					
@@ -365,17 +365,19 @@ Screen = require("screen")
 					
 					-- Render players
 					for i=1,PLAYER_COUNT do
-						local x = players[i].x
-						local y = terrain[round(players[i].x)]
-						-- Vehicle
-						gfx.fgcolor(35)
-						local player_x_rounded = clip(round(players[i].x), 0, TERRAIN_SIZE_X-1)
-						gfx.tri(player_x_rounded-2, terrain[player_x_rounded-2], player_x_rounded+2, terrain[player_x_rounded+2], player_x_rounded, terrain[player_x_rounded]-3)
-						-- HP display
-						gfx.fgcolor(34)
-						gfx.bar(x-5, y-8, 11, 1)
-						gfx.fgcolor(35)
-						gfx.bar(x-5, y-8, 11*(players[i].hp/100), 1)
+						if players[i].hp > 0 then
+							local x = players[i].x
+							local y = terrain[round(players[i].x)]
+							-- Vehicle
+							gfx.fgcolor(35)
+							local player_x_rounded = clip(round(players[i].x), 0, TERRAIN_SIZE_X-1)
+							gfx.tri(player_x_rounded-2, terrain[clip(player_x_rounded-2, 0, TERRAIN_SIZE_X-1)], player_x_rounded+2, terrain[clip(player_x_rounded+2, 0, TERRAIN_SIZE_X-1)], player_x_rounded, terrain[player_x_rounded]-3)
+							-- HP display
+							gfx.fgcolor(34)
+							gfx.bar(x-5, y-8, 11, 1)
+							gfx.fgcolor(35)
+							gfx.bar(x-5, y-8, 11*(players[i].hp/100), 1)
+						end
 					end
 				
 					-- Render overlay
@@ -396,8 +398,10 @@ Screen = require("screen")
 						
 						-- Shoot projectiles
 						for i=1,PLAYER_COUNT do
-							-- Spawn new projectile in player's position with player's aim
-							projectiles[#projectiles+1] = projectile_new(players[i].x, terrain[round(players[i].x)], players[i].target_x/25.0, players[i].target_y/25.0)
+							if players[i].hp > 0 then
+								-- Spawn new projectile in player's position with player's aim
+								projectiles[#projectiles+1] = projectile_new(players[i].x, terrain[round(players[i].x)], players[i].target_x/25.0, players[i].target_y/25.0)
+							end
 						end
 					else
 						t_setup = t_setup - dt_millis
