@@ -55,6 +55,10 @@ Screen = require("screen")
 		scrn:palette(35,0,15,0) -- green
 		scrn:palette(36,0,0,15) -- blue
 		scrn:palette(37,0,0,2) -- blue (very dark)
+		scrn:palette(38,15,10,4) -- orange-y
+		for i=96,111 do scrn:palette(i,i-96,0,0) end -- Different shades of red
+		for i=112,127 do scrn:palette(i,0,i-112,0) end -- Different shades of green
+		for i=128,143 do scrn:palette(i,0,0,i-128) end -- Different shades of blue
 		
 		-- Setup game
 		SCREEN_SIZE_X, SCREEN_SIZE_Y = scrn:size()
@@ -118,7 +122,13 @@ Screen = require("screen")
 		if mode == "title" then
 			-- BEGIN MENU SECTION
 				gfx.bgcolor(32)
-				gfx.cls()
+				--gfx.cls()
+				
+				--Render stripes
+				for y=0,SCREEN_SIZE_Y-1 do
+					gfx.fgcolor(104+round(7*math.sin((y/20)+(t/200))))
+					gfx.bar(0,y,SCREEN_SIZE_X,1)
+				end
 				
 				-- Version
 				gfx.fgcolor(33)
@@ -163,7 +173,7 @@ Screen = require("screen")
 				
 				-- Menu Rendering
 				for i=1,#menu do
-					if (i == menu_selected) and (math.floor(t / 150.0) % 2 == 0) then gfx.fgcolor(34) else gfx.fgcolor(33) end
+					if (i == menu_selected) and (math.floor(t / 150.0) % 2 == 0) then gfx.fgcolor(38) else gfx.fgcolor(33) end
 					text.draw_centered(menu[i], font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y / 2 - ((#menu * 9) / 2) + ((i - 1) * 9))
 				end
 				
@@ -279,7 +289,7 @@ Screen = require("screen")
 										if projectiles[i].y > terrain[round(projectiles[i].x)] then
 											-- If projectile hit close to player, hurt them
 											for j=1,PLAYER_COUNT do
-												if math.sqrt((players[j].x - projectiles[i].x)^2 + (terrain[clip(round(players[j].x), 0, TERRAIN_SIZE_X-1)] - projectiles[i].y)^2) <= 4 then
+												if math.sqrt((players[j].x - projectiles[i].x)^2 + (terrain[clip(round(players[j].x), 0, TERRAIN_SIZE_X-1)] - projectiles[i].y)^2) <= 6.66 then
 													players[j].hp = players[j].hp - DAMAGE_HIT
 												end
 											end
@@ -332,8 +342,16 @@ Screen = require("screen")
 					
 					if phase == "setup" then
 						-- Clear screen (only in setup phase)
-						gfx.bgcolor(37)
-						gfx.cls()
+						--gfx.bgcolor(37)
+						--gfx.cls()
+						
+						-- Render sky
+						gfx.bgcolor(130)
+						local barheight = SCREEN_SIZE_Y / 16.0
+						for i=0,15 do
+							gfx.fgcolor(143 - i)
+							gfx.bar(0, i*(barheight-1), SCREEN_SIZE_X, barheight)
+						end
 					end
 					
 					-- Render terrain
