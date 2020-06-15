@@ -22,7 +22,7 @@
 
 DEBUG = true
 TARGET_FPS = 60.0
-RELEASE_DATE = "2020-06-13"
+RELEASE_DATE = "2020-06-15"
 
 font = text.loadfont("Victoria.8b.gif")
 titlefont = text.loadfont("techbreak.16c.gif")
@@ -193,7 +193,14 @@ Screen = require("screen")
 									end
 								else
 									-- AI
-									-- TODO Implement AI
+									if math.random() < 0.01 or players[i].randomfactor == nil then
+										players[i].randomfactor = math.random()
+									end
+									if players[i].randomfactor < 0.5 then
+										direction = direction - 1
+									else
+										direction = direction + 1
+									end
 								end
 								-- Calculate speed based on height difference
 								local height_diff = math.abs((terrain[round(players[i].x)] or 0) - (terrain[round(players[i].x + direction)] or 0))
@@ -212,7 +219,27 @@ Screen = require("screen")
 									players[1].target_y = my - terrain[round(players[1].x)]
 								else
 									-- AI
-									-- TODO Implement AI
+									
+									-- Select a player to target, but make sure we don't target ourselves
+									::RETARGET_PLAYER::
+									local targeted_player = math.random(1,#players)
+									if targeted_player == i and #players > 1 then goto RETARGET_PLAYER end
+									
+									-- Calculate targeting parameters for f(x) = ax² + bx
+									-- WARNING This isn't quite working, so I added some math.random() to spice it up a bit
+									local dx = (players[targeted_player].x - players[i].x) / 128.0
+									local dy = (terrain[round(players[targeted_player].x)] - terrain[round(players[i].x)]) / 128.0
+									local a = 1.0 + (math.random()*1.8 - 0.9)
+									local b = 1
+									if not (dx == 0.0) then
+										b = (dy - (a*(dx^2)))/dx
+									end
+									local alpha_rads = math.atan(b)
+									if dx < 0 then alpha_rads = alpha_rads + math.rad(180) end
+									local strength = clip(0.05*(dx^2) + (math.random() * 0.45) + 0.1,-1.0,1.0)
+									players[i].target_x = math.cos(alpha_rads) * AIM_MAX_LENGTH * strength
+									players[i].target_y = math.sin(alpha_rads) * AIM_MAX_LENGTH * strength
+									--todrawstuff = "".."\ndx " .. dx .. "\ndy " .. dy .. "\na  " .. a .. "\nb  " .. b .. "\nar " .. alpha_rads .. "\nad " .. math.deg(alpha_rads) .. "\ntx " .. players[i].target_x .. "\nty " .. players[i].target_y
 								end
 								-- Restrict aiming to allowed vector length
 								-- If the vector is longer than AIM_MAX_LENGTH, normalize the vector (length 1), then scale to AIM_MAX_LENGTH
@@ -334,11 +361,15 @@ Screen = require("screen")
 					end
 				
 					-- Render overlay
-					gfx.fgcolor(33)
-					circb(players[1].x, terrain[round(players[1].x)], AIM_MAX_LENGTH) -- Aiming circle
-					gfx.line(players[1].x, terrain[round(players[1].x)], players[1].x+players[1].target_x, terrain[round(players[1].x)]+players[1].target_y) -- Aiming line
-					if DEBUG then
-						text.draw_shadowed(round(players[1].target_x) .. ", " .. round(players[1].target_y), font, players[1].x, terrain[round(players[1].x)]+64, true) -- Aiming vector text
+					for i=1,#players do
+						if i==1 or DEBUG then
+							gfx.fgcolor(33)
+							circb(players[i].x, terrain[round(players[i].x)], AIM_MAX_LENGTH) -- Aiming circle
+							gfx.line(players[i].x, terrain[round(players[i].x)], players[i].x+players[i].target_x, terrain[round(players[i].x)]+players[i].target_y) -- Aiming line
+							if DEBUG then
+								text.draw_shadowed(round(players[i].target_x) .. ", " .. round(players[i].target_y), font, players[i].x, terrain[round(players[i].x)]+64, true) -- Aiming vector text
+							end
+						end
 					end
 					
 					-- NOTE This is poorly placed, but for the phase renderer to show the correct phase when cls calls are stopped, the phase change has to be placed HERE!
@@ -397,6 +428,8 @@ Screen = require("screen")
 						homegirl_lastFPSflush = t
 					end
 					text.draw("t = " .. t .. "\ndt = " .. dt_millis .. "\nFPS(dt): " .. round(1000.0/dt_millis) .."\nFPS: " .. homegirlfps, font, SCREEN_SIZE_X - 100, 2)
+					
+					--text.draw(todrawstuff, font, 0, 8)
 				end
 			-- END RENDER SECTION
 		elseif mode == "gameover" then
