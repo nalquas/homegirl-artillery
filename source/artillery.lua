@@ -22,7 +22,7 @@
 
 DEBUG = false
 TARGET_FPS = 60.0
-RELEASE_DATE = "2020-06-15"
+RELEASE_DATE = "2020-06-20"
 
 font = text.loadfont("Victoria.8b.gif")
 titlefont = text.loadfont("techbreak.16c.gif")
@@ -46,6 +46,11 @@ Screen = require("screen")
 		-- Load assets
 		spritesheet = image.load("spritesheet.gif")[1]
 		image.usepalette(spritesheet)
+		audio_none = audio.new()
+		audio_drive = audio.load("sounds/drive.wav")
+		audio_shoot = audio.load("sounds/shoot.wav")
+		audio_explosion = audio.load("sounds/explosion.wav")
+		audio_hit = audio.load("sounds/hit.wav")
 		
 		-- Set palette
 		-- Indexes 0 to 31 are reserved for the spritesheet (which uses 32 colors)
@@ -101,6 +106,14 @@ Screen = require("screen")
 		-- Remove all projectiles
 		projectiles = {}
 		
+		-- Mark all channels empty
+		channel_occupation = {}
+		channel_occupation_last = {}
+		for i=0,3 do
+			channel_occupation[i] = false
+			channel_occupation_last[i] = false
+		end
+		
 		-- Game phases:
 		-- setup - Players move their tanks and aim
 		-- action - Shots are fired, projectiles move, players wait
@@ -150,6 +163,12 @@ Screen = require("screen")
 				end
 				menu_selected = clip(menu_selected, 1, #menu)
 				if btnp(4) then
+					-- Play sound
+					for channel=0,3 do
+						audio.play(channel, audio_explosion)
+						audio.channelloop(channel, 0, 0) -- don't loop
+					end
+					
 					-- Y/Z
 					if menu_selected == 1 then
 						-- Start new game
@@ -189,6 +208,12 @@ Screen = require("screen")
 				text.draw_centered("https://github.com/nalquas/homegirl-artillery", font, SCREEN_SIZE_X / 2, SCREEN_SIZE_Y - 12)
 			-- END MENU SECTION
 		elseif mode == "game" then
+			-- Reset channel occupation
+			for i=0,3 do
+				channel_occupation_last[i] = channel_occupation[i]
+				channel_occupation[i] = false
+			end
+			
 			-- BEGIN GAMEPLAY SECTION
 				if phase == "setup" then
 					-- BEGIN INPUT SECTION
@@ -224,6 +249,12 @@ Screen = require("screen")
 								end
 								-- Commit movement
 								players[i].x = clip(players[i].x + (direction * speed * (30 * dt_seconds)), 0, TERRAIN_SIZE_X-1)
+								
+								-- Mark channel for movement sound playback
+								local channel = round((players[i].x / SCREEN_SIZE_X) * 3)
+								if not (direction == 0) then
+									channel_occupation[channel] = true
+								end
 							-- END MOVEMENT
 							-- BEGIN AIMING
 								if i==1 then
@@ -272,6 +303,17 @@ Screen = require("screen")
 						for i=1,PLAYER_COUNT do
 							players[i].x = clip(players[i].x, 0, TERRAIN_SIZE_X-1)
 						end
+						
+						-- Player's audio playback (motor sounds)
+						for i=0,3 do
+							if channel_occupation[i] and (not channel_occupation_last[i]) then
+								local sample_length = audio.samplelength(audio_drive)
+								audio.play(i, audio_drive)
+								audio.channelloop(i, 0, sample_length)
+							elseif (not channel_occupation[i]) and channel_occupation_last[i] then
+								audio_stop(i)
+							end
+						end
 					-- END LOGIC SECTION
 				elseif phase == "action" then
 					-- BEGIN LOGIC SECTION
@@ -292,10 +334,22 @@ Screen = require("screen")
 									else
 										-- If projectile hit the terrain...
 										if projectiles[i].y > terrain[round(projectiles[i].x)] then
+											-- Play explosion sound
+											local channel = round((projectiles[i].x / SCREEN_SIZE_X) * 3)
+											audio.play(channel, audio_explosion)
+											audio.channelloop(channel, 0, 0) -- don't loop
+											
 											-- If projectile hit close to player, hurt them
 											for j=1,PLAYER_COUNT do
 												if math.sqrt((players[j].x - projectiles[i].x)^2 + (terrain[clip(round(players[j].x), 0, TERRAIN_SIZE_X-1)] - projectiles[i].y)^2) <= 7.5 then
 													players[j].hp = players[j].hp - DAMAGE_HIT
+													
+													-- Play hit sound
+													if players[j].hp > 0 then
+														local channel = round((players[j].x / SCREEN_SIZE_X) * 3)
+														audio.play(channel, audio_hit)
+														audio.channelloop(channel, 0, 0) -- don't loop
+													end
 												end
 											end
 											
@@ -322,6 +376,13 @@ Screen = require("screen")
 						if end_action_phase then
 							phase = "setup"
 							t_setup = PHASE_SETUP_TIME
+							
+							-- Stop audio from action phase
+							for i=0,3 do
+								audio_stop(i)
+								channel_occupation[i] = false
+								channel_occupation_last[i] = false
+							end
 						
 							-- End game if player is dead or all others are dead
 							local end_game = true
@@ -401,11 +462,32 @@ Screen = require("screen")
 					if (t_setup < 0) and (phase == "setup") then
 						phase = "action"
 						
+						-- Stop audio from setup phase
+						for i=0,3 do
+							audio_stop(i)
+							channel_occupation[i] = false
+							channel_occupation_last[i] = false
+						end
+						
 						-- Shoot projectiles
 						for i=1,PLAYER_COUNT do
 							if players[i].hp > 0 then
 								-- Spawn new projectile in player's position with player's aim
 								projectiles[#projectiles+1] = projectile_new(players[i].x, terrain[round(players[i].x)], players[i].target_x/25.0, players[i].target_y/25.0)
+								
+								-- Mark this position's channel for audio playback
+								channel_occupation[round((players[i].x / SCREEN_SIZE_X) * 3)] = true
+							end
+						end
+						
+						-- Play projectile audio as assigned in channel_occupation
+						for i=0,3 do
+							if channel_occupation[i] then
+								audio.play(i, audio_shoot)
+								audio.channelloop(i, 0, 0) -- don't loop
+								
+								-- Clean for the setup phase
+								channel_occupation[i] = false
 							end
 						end
 					else
@@ -634,6 +716,11 @@ Screen = require("screen")
 	function round(x)
 		if x<0 then return math.ceil(x-0.5) end
 		return math.floor(x+0.5)
+	end
+	
+	function audio_stop(channel)
+		audio.play(channel, audio_none)
+		audio.channelloop(channel, 0, 0)
 	end
 	
 	function game_exit()
